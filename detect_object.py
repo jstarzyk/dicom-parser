@@ -49,13 +49,17 @@ if __name__ == '__main__':
     else:
         image = ds.pixel_array[0]
     dist, bin_image = get_bin_image(image)
-    graphs = transform_to_graph(bin_image, r=10)
+    graphs = list(transform_to_graph(bin_image, r=10))
+
+    
     for graph in graphs:
         fill_gapes(graph)
 
     graphs_processed = map(get_largest_path_as_graph, graphs)
+    
+
     graph_image = get_graph_image(graphs_processed, image)
-    cv2.imshow('Found Objects', np.uint8( graph_image))
+    cv2.imshow('Found Objects', np.uint8(graph_image))
 
     for graph in graphs_processed:
         add_width_to_nodes(graph, dist)

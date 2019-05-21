@@ -141,9 +141,9 @@ def filter_round(graphs, img_shape, coef=0.9):
     height, width = img_shape
     min_r = min([height, width]) / 2 * coef
     min_r_sqr = min_r ** 2
-    get_r = lambda (x, y): (height / 2 - x) ** 2 + (width / 2 - y) ** 2
+    get_r = lambda coord: (height / 2 - coord[0]) ** 2 + (width / 2 - coord[1]) ** 2
     def check(graph):
-        inside = len(filter(lambda node: get_r(node.coord) < min_r_sqr, graph.nodes))
+        inside = len(list(filter(lambda node: get_r(node.coord) < min_r_sqr, graph.nodes)))
         return (1.0 * inside / len(graph.nodes)) > 0.9
     return filter(lambda graph: check(graph), graphs)
 
@@ -173,11 +173,11 @@ def filter_max_paths(graph):
     (i, j) = np.unravel_index(np.argmax(distances, axis=None), distances.shape)
     new_nodes = set()
     for i in np.arange(distances[i, j]):
-        new_nodes.append(Node())
+        new_nodes.add(Node())
     prev = None
     while path_next[i, j] != j:
         new_node = Node()
-        node.coord = nodes[i].coord
+        new_node.coord = nodes[i].coord
         if prev is not None:
             prev.nodes.connected.append(new_node)
         prev = new_node
@@ -255,7 +255,7 @@ def connect(node1, node2, graph):
         for x in np.arange(min_x + 1, max_x):
             new_node = Node()
             y = ((max_y - min_y) * (x - min_x)) / (max_x - min_x) + min_y
-            new_node.coord = (x, y) 
+            new_node.coord = (int(x), int(y)) 
             new_node.connected.append(prev)
             prev.connected.append(new_node)
             graph.nodes.add(new_node)
@@ -270,7 +270,7 @@ def connect(node1, node2, graph):
         for y in np.arange(min_y + 1, max_y):
             new_node = Node()
             x = ((max_x - min_x) * (y - min_y)) / (max_y - min_y) + min_x
-            new_node.coord = (x, y) 
+            new_node.coord = (int(x), int(y))
             new_node.connected.append(prev)
             prev.connected.append(new_node)
             graph.nodes.add(new_node)
@@ -286,7 +286,7 @@ def dist(coord1, coord2):
 
 def connect_end_to_graph(end, graph, new_graph):
     distances, path, _ = Dijkstra(graph, end)
-    distances = sorted(list(distances.items()), key=lambda (n, d): d)
+    distances = sorted(list(distances.items()), key=lambda value: value[1])
     shared_node = None
     path_coords = map(lambda node: node.coord, new_graph.nodes)
     for node, end_len in distances:
@@ -325,10 +325,11 @@ def get_largest_path_as_graph(graph, remove=True):
     max_node2 = get_max_path_node(distances)
     new_graph = graph_from_path(graph, path, max_node2)
     for end in ends:
-        connect_end_to_graph(end, graph, new_graph)
+        #connect_end_to_graph(end, graph, new_graph)
         pass
     if remove:
-        remove_small_branches(new_graph, new_graph.get_node_by_coord(max_node1.coord))
+        #remove_small_branches(new_graph, new_graph.get_node_by_coord(max_node1.coord))
+        pass
     return new_graph
     
 
@@ -385,7 +386,7 @@ def remove_small_branches(graph, start, min_size=30):
             count_stack.append(1)
         else:    
             tree_lengths = [count_stack.pop() for index in np.arange(size)][::-1]
-            sorted_nodes = sorted(zip(map(lambda child: child.value, curr.childrens), tree_lengths), key=lambda (n, l): l, reverse=True)
+            sorted_nodes = sorted(zip(map(lambda child: child.value, curr.childrens), tree_lengths), key=lambda value: value[1], reverse=True)
             for node, tree_len in sorted_nodes[1:]:
                 if tree_len < min_size:
                     remove_branch(curr.value, node, graph)
