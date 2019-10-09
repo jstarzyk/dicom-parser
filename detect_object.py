@@ -1,3 +1,6 @@
+#!/usr/bin/python
+
+
 import matplotlib.pyplot as plt
 import pydicom
 import cv2
@@ -39,15 +42,20 @@ def get_graph_image(graphs, gray=None):
     return img
 
 
-if __name__ == '__main__':
-    arg_parser = init_parser()
-    args = arg_parser.parse_args()
-    ds = pydicom.dcmread(args.source)
+def get_image_from_dicom(dicom_file):
+    ds = pydicom.dcmread(dicom_file)
     image = None
     if len(ds.pixel_array.shape) == 2:
         image = ds.pixel_array
     else:
         image = ds.pixel_array[0]
+    return np.uint8(image)
+
+
+if __name__ == '__main__':
+    arg_parser = init_parser()
+    args = arg_parser.parse_args()
+    image = get_image_from_dicom(args.source)
     dist, bin_image = get_bin_image(image)
     graphs = transform_to_graph(bin_image, r=10)
     for graph in graphs:
@@ -62,3 +70,15 @@ if __name__ == '__main__':
 
     cv2.waitKey(0)
     cv2.destroyAllWindows()
+
+
+def process_image(dicom_file):
+    image = get_image_from_dicom(dicom_file)
+    dist, bin_image = get_bin_image(image)
+    graphs = transform_to_graph(bin_image, r=10)
+    for graph in graphs:
+        fill_gapes(graph)
+
+    graphs_processed = map(get_largest_path_as_graph, graphs)
+    graph_image = get_graph_image(graphs_processed, image)
+    return(np.uint8(graph_image))

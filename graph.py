@@ -141,7 +141,7 @@ def filter_round(graphs, img_shape, coef=0.9):
     height, width = img_shape
     min_r = min([height, width]) / 2 * coef
     min_r_sqr = min_r ** 2
-    get_r = lambda (x, y): (height / 2 - x) ** 2 + (width / 2 - y) ** 2
+    get_r = lambda value: (height / 2 - value[0]) ** 2 + (width / 2 - value[1]) ** 2
     def check(graph):
         inside = len(filter(lambda node: get_r(node.coord) < min_r_sqr, graph.nodes))
         return (1.0 * inside / len(graph.nodes)) > 0.9
@@ -240,7 +240,7 @@ def fill_gapes(graph):
 
     for node in nodes:
         for next_node in node.connected:
-            if dist(node.coord, next_node.coord) > 1.5:
+            if dist_l2(node.coord, next_node.coord) > 1.5:
                 connect(node, next_node, graph)
 
 
@@ -280,13 +280,13 @@ def connect(node1, node2, graph):
         
 
 
-def dist(coord1, coord2):
+def dist_l2(coord1, coord2):
     return np.sqrt((coord1[0] - coord2[0]) ** 2 + (coord1[1] - coord2[1]) ** 2)
 
 
 def connect_end_to_graph(end, graph, new_graph):
     distances, path, _ = Dijkstra(graph, end)
-    distances = sorted(list(distances.items()), key=lambda (n, d): d)
+    distances = sorted(list(distances.items()), key=lambda value: value[1])
     shared_node = None
     path_coords = map(lambda node: node.coord, new_graph.nodes)
     for node, end_len in distances:
@@ -385,7 +385,7 @@ def remove_small_branches(graph, start, min_size=30):
             count_stack.append(1)
         else:    
             tree_lengths = [count_stack.pop() for index in np.arange(size)][::-1]
-            sorted_nodes = sorted(zip(map(lambda child: child.value, curr.childrens), tree_lengths), key=lambda (n, l): l, reverse=True)
+            sorted_nodes = sorted(zip(map(lambda child: child.value, curr.childrens), tree_lengths), key=lambda value: value[1], reverse=True)
             for node, tree_len in sorted_nodes[1:]:
                 if tree_len < min_size:
                     remove_branch(curr.value, node, graph)
