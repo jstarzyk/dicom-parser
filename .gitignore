@@ -1,5 +1,4 @@
 *.pyc
-*.DCM
 *.pdf
 .idea
 .vscode
