@@ -143,7 +143,7 @@ def filter_round(graphs, img_shape, coef=0.9):
     min_r_sqr = min_r ** 2
     get_r = lambda value: (height / 2 - value[0]) ** 2 + (width / 2 - value[1]) ** 2
     def check(graph):
-        inside = len(filter(lambda node: get_r(node.coord) < min_r_sqr, graph.nodes))
+        inside = len(list(filter(lambda node: get_r(node.coord) < min_r_sqr, graph.nodes)))
         return (1.0 * inside / len(graph.nodes)) > 0.9
     return filter(lambda graph: check(graph), graphs)
 
@@ -173,11 +173,11 @@ def filter_max_paths(graph):
     (i, j) = np.unravel_index(np.argmax(distances, axis=None), distances.shape)
     new_nodes = set()
     for i in np.arange(distances[i, j]):
-        new_nodes.append(Node())
+        new_nodes.add(Node())
     prev = None
     while path_next[i, j] != j:
         new_node = Node()
-        node.coord = nodes[i].coord
+        new_node.coord = nodes[i].coord
         if prev is not None:
             prev.nodes.connected.append(new_node)
         prev = new_node
@@ -255,7 +255,7 @@ def connect(node1, node2, graph):
         for x in np.arange(min_x + 1, max_x):
             new_node = Node()
             y = ((max_y - min_y) * (x - min_x)) / (max_x - min_x) + min_y
-            new_node.coord = (x, y) 
+            new_node.coord = (int(x), int(y))
             new_node.connected.append(prev)
             prev.connected.append(new_node)
             graph.nodes.add(new_node)
@@ -270,7 +270,7 @@ def connect(node1, node2, graph):
         for y in np.arange(min_y + 1, max_y):
             new_node = Node()
             x = ((max_x - min_x) * (y - min_y)) / (max_y - min_y) + min_x
-            new_node.coord = (x, y) 
+            new_node.coord = (int(x), int(y))
             new_node.connected.append(prev)
             prev.connected.append(new_node)
             graph.nodes.add(new_node)

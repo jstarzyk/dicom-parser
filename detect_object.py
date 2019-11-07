@@ -57,11 +57,11 @@ if __name__ == '__main__':
     args = arg_parser.parse_args()
     image = get_image_from_dicom(args.source)
     dist, bin_image = get_bin_image(image)
-    graphs = transform_to_graph(bin_image, r=10)
+    graphs = list(transform_to_graph(bin_image, r=10))
     for graph in graphs:
         fill_gapes(graph)
 
-    graphs_processed = map(get_largest_path_as_graph, graphs)
+    graphs_processed = list(map(get_largest_path_as_graph, graphs))
     graph_image = get_graph_image(graphs_processed, image)
     cv2.imshow('Found Objects', np.uint8( graph_image))
 
