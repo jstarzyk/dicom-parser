@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Loading</title>
+    </head>
+    <body>
+        <label for="file">Select DICOM image</label>
+        <form id="upload_form" enctype="multipart/form-data">
+            <input type="file"
+                id="file" name="file"
+                accept=".dcm">
+        </form>
+        <button type="submit" id="submit">Submit</button>
+    </body>
+    <script>
+        let postRequstUrl = "/upload_image"
+        let redirectUrlBase = "/show_image/"
+
+        document.getElementById("submit").addEventListener("click", send_image);
+        function send_image(){
+            let files = document.getElementById("file").files; 
+            if( files.length == 0 ){
+                raiseAlert("File isn't selected");
+            }else{
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", postRequstUrl, true);
+                // xhr.setRequestHeader('Content-Type', "multipart/form-data");
+                var formData = new FormData(document.getElementById("upload_form"));
+                formData.append("image", files[0]);
+                xhr.send(formData);
+
+                xhr.onreadystatechange = function () {
+                    if (this.readyState != 4) return;
+                    if (this.status == 200) {
+                        var data = JSON.parse(this.responseText);
+                        if ("error" in data){
+                            raiseAlert(data.error);
+                        }else{
+                            window.location.href = redirectUrlBase + data.filename;
+                        }
+                    }
+                };
+            }
+        }
+        function raiseAlert(text){
+            let alert = document.getElementById("alert")
+            if (alert == null){
+                let alert = document.createTextNode(text);
+                alert.id = "alert"
+                document.body.appendChild(alert);
+            }else{
+                alert.innerHTML = text;
+            }
+        }
+    </script>
+</html>
