@@ -5,7 +5,7 @@ import os
 from flask import *
 from werkzeug.utils import secure_filename
 from PIL import Image
-import StringIO
+from io import BytesIO
 import detect_object as do
 from base64 import b64encode
 
@@ -15,7 +15,7 @@ UPLOAD_FOLDER = os.path.abspath(os.path.dirname(__file__)) + '/images'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 def send_image(image):
-    img_io = StringIO.StringIO()
+    img_io = BytesIO()
     image.save(img_io, 'PNG')
     img_io.seek(0)
     return send_file(img_io, mimetype='image/png')
@@ -63,7 +63,7 @@ def process_image():
     try:
         image = do.process_image(filename)
         # image = do.get_image_from_dicom(filename)
-        img_io = StringIO.StringIO()
+        img_io = BytesIO()
         Image.fromarray(image).save(img_io, 'PNG')
         img_io.seek(0)
         return b64encode(img_io.read())
