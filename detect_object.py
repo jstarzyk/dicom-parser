@@ -1,3 +1,6 @@
+#!/usr/bin/python
+
+
 import matplotlib.pyplot as plt
 import pydicom
 import cv2
@@ -10,7 +13,7 @@ from image_process import get_bin_image
 def init_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('--input', '-i', dest='source', action='store',
-                    default='input.DCM', help='path to input dicom file')
+                        default='input.DCM', help='path to input dicom file')
     return parser
 
 
@@ -39,30 +42,43 @@ def get_graph_image(graphs, gray=None):
     return img
 
 
-if __name__ == '__main__':
-    arg_parser = init_parser()
-    args = arg_parser.parse_args()
-    ds = pydicom.dcmread(args.source)
+def get_image_from_dicom(dicom_file):
+    ds = pydicom.dcmread(dicom_file)
     image = None
     if len(ds.pixel_array.shape) == 2:
         image = ds.pixel_array
     else:
         image = ds.pixel_array[0]
+    return np.uint8(image)
+
+
+if __name__ == '__main__':
+    arg_parser = init_parser()
+    args = arg_parser.parse_args()
+    image = get_image_from_dicom(args.source)
     dist, bin_image = get_bin_image(image)
     graphs = list(transform_to_graph(bin_image, r=10))
-
-    
     for graph in graphs:
         fill_gapes(graph)
 
-    graphs_processed = map(get_largest_path_as_graph, graphs)
-    
-
+    graphs_processed = list(map(get_largest_path_as_graph, graphs))
     graph_image = get_graph_image(graphs_processed, image)
-    cv2.imshow('Found Objects', np.uint8(graph_image))
+    cv2.imshow('Found Objects', np.uint8( graph_image))
 
     for graph in graphs_processed:
         add_width_to_nodes(graph, dist)
 
     cv2.waitKey(0)
     cv2.destroyAllWindows()
+
+
+def process_image(dicom_file):
+    image = get_image_from_dicom(dicom_file)
+    dist, bin_image = get_bin_image(image)
+    graphs = transform_to_graph(bin_image, r=10)
+    for graph in graphs:
+        fill_gapes(graph)
+
+    graphs_processed = map(get_largest_path_as_graph, graphs)
+    graph_image = get_graph_image(graphs_processed, image)
+    return(np.uint8(graph_image))
