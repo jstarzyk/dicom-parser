@@ -2,9 +2,44 @@
 
 {% block app %}
     <div class="app-container">
-        <img src="/uploads/{{ uploaded_image }}">
-        <a href="/show_result/{{ uploaded_image }}">
-            <button type="submit" id="submit">Submit</button>
-        </a>
+        <img id="image" src="/uploads/{{ uploaded_image }}">
+        <button type="submit" id="submit">Process</button>
+        <p id="wait_msg" style="display: none;">Processing image</p>
     </div>
+    <script>
+        const submit = document.getElementById('submit');
+        submit.addEventListener('click', function() {
+            const msg = document.getElementById('wait_msg');
+            msg.style.removeProperty('display');
+
+            const xhr = new XMLHttpRequest();
+            const filename = window.location.pathname.split('/').slice(-1)[0];
+            const requestData = JSON.stringify({'filename': filename});
+            xhr.open('POST', '/process_image', true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+
+            xhr.onreadystatechange = function() {
+                if (this.readyState === XMLHttpRequest.DONE && this.status === 200) {
+                    console.log('Image processed');
+                    const image = document.getElementById('image');
+                    const originalImageUrl = image.src;
+                    const processedImageUrl = 'data:image/png;charset=utf-8;base64, ' + this.responseText;
+                    image.src = processedImageUrl;
+                    let showingProcessedImage = true;
+                    msg.style.setProperty('display', 'none');
+                    submit.style.setProperty('display', 'none');
+                    image.addEventListener('click', function() {
+                        if (showingProcessedImage) {
+                            image.src = originalImageUrl;
+                        } else {
+                            image.src = processedImageUrl;
+                        }
+                        showingProcessedImage = !showingProcessedImage;
+                    });
+                }
+            };
+
+            xhr.send(requestData);
+        });
+    </script>
 {% endblock %}

@@ -55,9 +55,9 @@ def show_image(filename):
     return render_template("show_image.html", uploaded_image=filename)
 
 
-@app.route('/show_result/<filename>')
-def show_result(filename):
-    return render_template("show_result.html", uploaded_image=filename)
+# @app.route('/show_result/<filename>')
+# def show_result(filename):
+#     return render_template("show_result.html", uploaded_image=filename)
 
 
 @app.route("/process_image", methods=['GET', 'POST'])
