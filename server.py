@@ -14,11 +14,13 @@ app = Flask(__name__)
 UPLOAD_FOLDER = os.path.abspath(os.path.dirname(__file__)) + '/images'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
+
 def send_image(image):
     img_io = BytesIO()
     image.save(img_io, 'PNG')
     img_io.seek(0)
     return send_file(img_io, mimetype='image/png')
+
 
 @app.route("/")
 def home():
@@ -39,7 +41,7 @@ def upload_image():
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
             return jsonify({"filename": filename})
     return jsonify({"error": "Unknown error"})
-    
+
 
 @app.route('/uploads/<filename>')
 def uploaded_image(filename):
@@ -57,6 +59,7 @@ def show_image(filename):
 def show_result(filename):
     return render_template("show_result.html", uploaded_image=filename)
 
+
 @app.route("/process_image", methods=['GET', 'POST'])
 def process_image():
     filename = request.json['filename']
@@ -73,5 +76,3 @@ def process_image():
 
 if __name__ == "__main__":
     app.run(debug=True)
-
-
