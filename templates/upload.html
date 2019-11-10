@@ -11,46 +11,32 @@
         <button type="submit" id="submit">Submit</button>
     </div>
     <script>
-        let postRequstUrl = "/upload_image"
-        let redirectUrlBase = "/show_image/"
+        document.getElementById("submit").addEventListener("click", function () {
+            const files = document.getElementById("file").files;
+            if (files.length === 0) {
+                window.alert("File isn't selected");
+                return;
+            }
 
-        document.getElementById("submit").addEventListener("click", send_image);
+            const xhr = new XMLHttpRequest();
+            const formData = new FormData(document.getElementById("upload_form"));
+            formData.append("image", files[0]);
 
-        function send_image() {
-            let files = document.getElementById("file").files;
-            if (files.length == 0) {
-                raiseAlert("File isn't selected");
-            } else {
-                var xhr = new XMLHttpRequest();
-                xhr.open("POST", postRequstUrl, true);
-                // xhr.setRequestHeader('Content-Type', "multipart/form-data");
-                var formData = new FormData(document.getElementById("upload_form"));
-                formData.append("image", files[0]);
-                xhr.send(formData);
+            // xhr.setRequestHeader('Content-Type', "multipart/form-data");
+            xhr.open("POST", "/upload_image", true);
 
-                xhr.onreadystatechange = function () {
-                    if (this.readyState != 4) return;
-                    if (this.status == 200) {
-                        var data = JSON.parse(this.responseText);
-                        if ("error" in data) {
-                            raiseAlert(data.error);
-                        } else {
-                            window.location.href = redirectUrlBase + data.filename;
-                        }
+            xhr.onreadystatechange = function () {
+                if (this.readyState === XMLHttpRequest.DONE && this.status === 200) {
+                    const data = JSON.parse(this.responseText);
+                    if ("error" in data) {
+                        window.alert(data.error);
+                    } else {
+                        window.location.href = "/show_image/" + data.filename;
                     }
-                };
-            }
-        }
+                }
+            };
 
-        function raiseAlert(text) {
-            let alert = document.getElementById("alert")
-            if (alert == null) {
-                let alert = document.createTextNode(text);
-                alert.id = "alert"
-                document.body.appendChild(alert);
-            } else {
-                alert.innerHTML = text;
-            }
-        }
+            xhr.send(formData);
+        });
     </script>
 {% endblock %}
