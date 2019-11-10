@@ -2,37 +2,75 @@
 
 {% block app %}
     <div class="app-container">
-        <img id="image" src="/uploads/{{ uploaded_image }}">
-        <button type="submit" id="submit">Process</button>
-        <p id="wait_msg" style="display: none;">Processing image</p>
+        <img id="original" src="/uploads/{{ uploaded_image }}">
+        <img id="processed" style="display: none;">
+        <button type="submit" id="process">Process</button>
+        <button type="button" id="toggle" style="display: none;">Toggle results</button>
+        <div id="download" style="display: none;">
+            <p style="text-align: center;">Download...</p>
+            <a id="downloadOriginalImage">Original image</a>
+            <a id="downloadProcessedImage">Processed image</a>
+            <a id="downloadFoundObjects" disabled>Found objects</a>
+        </div>
+        <p id="processing" style="display: none;">Processing image</p>
     </div>
     <script>
-        const submit = document.getElementById('submit');
-        submit.addEventListener('click', function() {
-            const msg = document.getElementById('wait_msg');
-            msg.style.removeProperty('display');
+        const processButton = document.getElementById("process");
+        const toggleButton = document.getElementById("toggle");
+        const originalImage = document.getElementById("original");
+        const processedImage = document.getElementById("processed");
+        const downloadDiv = document.getElementById("download");
+        const processing = document.getElementById("processing");
+        const downloadOriginalImage = document.getElementById("downloadOriginalImage");
+        const downloadProcessedImage = document.getElementById("downloadProcessedImage");
+        const downloadFoundObjects = document.getElementById("downloadFoundObjects");
+
+        function showElements(...elements) {
+            for (let e of elements) {
+                e.style.removeProperty("display");
+            }
+        }
+
+        function hideElements(...elements) {
+            for (let e of elements) {
+                e.style.setProperty("display", "none");
+            }
+        }
+
+        processButton.addEventListener("click", function () {
+            hideElements(processButton);
+            showElements(processing);
 
             const xhr = new XMLHttpRequest();
-            const filename = window.location.pathname.split('/').slice(-1)[0];
-            const requestData = JSON.stringify({'filename': filename});
-            xhr.open('POST', '/process_image', true);
-            xhr.setRequestHeader('Content-Type', 'application/json');
+            const filename = window.location.pathname.split("/").slice(-1)[0];
+            const requestData = JSON.stringify({"filename": filename});
 
-            xhr.onreadystatechange = function() {
+            xhr.open("POST", "/process_image", true);
+            xhr.setRequestHeader("Content-Type", "application/json");
+
+            xhr.onreadystatechange = function () {
                 if (this.readyState === XMLHttpRequest.DONE && this.status === 200) {
-                    console.log('Image processed');
-                    const image = document.getElementById('image');
-                    const originalImageUrl = image.src;
-                    const processedImageUrl = 'data:image/png;charset=utf-8;base64, ' + this.responseText;
-                    image.src = processedImageUrl;
+                    processedImage.src = "data:image/png;charset=utf-8;base64, " + this.responseText;
+
+                    downloadOriginalImage.href = originalImage.src;
+                    downloadOriginalImage.download = `${filename}_original.png`;
+                    downloadProcessedImage.href = processedImage.src;
+                    downloadProcessedImage.download = `${filename}_processed.png`;
+
+                    hideElements(processing);
+                    showElements(toggleButton, downloadDiv);
+
+                    hideElements(originalImage);
+                    showElements(processedImage);
                     let showingProcessedImage = true;
-                    msg.style.setProperty('display', 'none');
-                    submit.style.setProperty('display', 'none');
-                    image.addEventListener('click', function() {
+
+                    toggleButton.addEventListener("click", function () {
                         if (showingProcessedImage) {
-                            image.src = originalImageUrl;
+                            hideElements(processedImage);
+                            showElements(originalImage);
                         } else {
-                            image.src = processedImageUrl;
+                            hideElements(originalImage);
+                            showElements(processedImage);
                         }
                         showingProcessedImage = !showingProcessedImage;
                     });
