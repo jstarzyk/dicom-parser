@@ -15,6 +15,8 @@ def init_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('--input', '-i', dest='source', action='store',
                         default='input.DCM', help='path to input dicom file')
+    parser.add_argument('--dict', '-d', dest='dict', action='store',
+                        default='sample_input.json', help='path to input dictionary description')  
     return parser
 
 

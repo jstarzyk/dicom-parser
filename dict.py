@@ -1,6 +1,6 @@
 import networkx as nx
 import json
-from graph import 
+from graph import *
 # import jsonpickle
 
 
@@ -33,7 +33,8 @@ class ModelObject:
                 start, end = int(start * length), int(end * length)
                 low = min(start_width - start_dev, end_width - end_dev)
                 high = min(start_width + start_dev, end_width + end_dev)
-                if not all(lambda val: val >= low and val <= high):
+                low_val, high_val = min(values), max(values)
+                if low_val >= low and high_val <= high):
                     return False
             return True
         
@@ -43,7 +44,7 @@ class ModelObject:
         return -1
         
 def find_objects_on_branch(model_objects, branch):
-    start = 0
+    start, start_free_space = 0, 0
     objects = []
     while start != len(branch):
         objects_lenghts = []
@@ -52,29 +53,87 @@ def find_objects_on_branch(model_objects, branch):
         max_length = max(objects_lenghts)
         if max_length > 0:
             index = objects_lenghts.index(max_length):
-            objects.append(model_objects[index].id, start, start + max_length)
-            start += max_length
+            if start != start_free_space:
+                objects.append('Free space', start_free_space, start)
+            object_desc = dict(
+                name=model_objects[index].id,
+                start_index=start,
+                end_index=start + max_length,
+                length=max_length,
+                min_width=min(branch[start:start + max_length]),
+                max_width=max(branch[start:start + max_length])
+            )
+            objects.append(object_desc)
+            start += max_length + 1
+            start_free_space = start
         else:
             start += 1:
 
 
 def find_objects_on_graph(model_objects, graph):
-    branches, joints = divide_graph_by_branches(graph)
+    start_branch, joints = divide_graph_by_branches(graph)
     found_objects = []
-    for branch in branches:
-        branch_widths = list(map(lambda node: node.width, branch))
+    stack = [start_branch]
+    while stack:
+        branch = stack.pop()
+        branch_widths = list(map(lambda node: node.width, branch.nodes))
         found_objects_on_branch = find_objects_on_branch(model_objects, branch_widths)
         for found_object in found_objects_on_branch:
-            object_id, start, end = found_object
-            found_objects.append((objects, branch[start], branch[end]))
-    return found_object
+            object_desc = found_object
+            object_desc['start_coords'] = branch.nodes[object_desc['start_index']].coord
+            object_desc['end_coords'] = branch.nodes[object_desc['end_index']].coord
+            mid_index = object_desc['start_index'] + (object_desc['end_index'] - object_desc['start_index']) // 2
+            object_desc['center_coords'] = branch.nodes[mid_index].coord
+            found_objects.append(FoundObject(object_desc))
+        branch.found_objects = found_objects
+        for next_branch in branch.next:
+            stack.add(next_branch)
+    return start_branch, joints
 
 
 class FoundObject:
-    def __init__(self, model_id, coord=None, angle=None):
-        self.model_id = model_id
-        self.coord = coord
-        self.angle = angle
+    def __init__(self, object_desc):
+        self.description = object_desc
+        assert 'name' in object_desc
+    
+    def __str__(self):
+        text = "Object ID: %s" % self.description['name']
+        if 'length' in self.description:
+            text += " Length: %d" % self.description['length']
+        if 'min_width' in self.description:
+            text += " Minimal width: %d" % self.description['min_width']
+        if 'max_width' in self.description:
+            text += " Maximal width: %d" % self.description['max_width']
+        if 'center_coords' in self.description:
+            text += " Location: %d, %d" % self.description['center_coords']
+        return text
+
+
+class GraphOfFoundObjects:
+    def __init__(self, graph, model_objects, name="Graph"):
+        self.start_branch, self.joints = find_objects_on_graph(model_objects, graph)
+
+
+    def __repr__(self):
+        stack = [(self.start_branch, '')]
+        text = self.name + ":\n"
+        while stack:
+            curr_branch, prefix = stack.pop(0)
+            for found_object in curr_branch.found_objects:
+                text += prefix + found_objects + '\n'
+            for next_branch in branch.next:
+                stack.append((next_branch, prefix + '\t|'))
+        return text
+
+
+    @staticmethod
+    def create_and_write_graphs(file, graphs, model_objects):
+        graphs_with_objects = []
+        for i, graph in enumerate(graphs):
+            graph_with_objects = GraphOfFoundObjects(graph, model_objects, "Graph #%d" % i)
+            file.write(graph_with_objects.__repr__())
+            graphs_with_objects.append(graph_with_objects)
+        return graphs_with_objects
 
 
 def load(filename):

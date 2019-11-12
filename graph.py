@@ -449,25 +449,35 @@ def add_width_to_nodes(graph, dist):
         node.width = dist[i,j]
 
 
+class Branch:
+    def __init__(self, nodes=[]):
+        self.nodes = nodes
+        self.next = []
+
+    def add_node(self, node):
+        self.nodes.append(node)
+
+    def add_next_branch(self, next_branch):
+        self.next.append(next_branch)
+
+
 def divide_graph_by_branches(graph):
-    branches, curr_branch, joints = [], [], []
-    stack = [graph.start_node]
+    start_branch, joints = Branch(), []
+    stack = [(graph.start_node, start_branch)]
     while stack:
-        curr_node = stack.pop()
+        curr_node, curr_branch = stack.pop()
         if len(curr_node.next) > 1:
-            branches.append(curr_branch)
-            curr_branch = []
             joints.append(curr_node)
             for node in curr_node.next:
-                stack.append(node)
+                new_branch = Branch()
+                curr_branch.add_next_branch(next_branch)
+                stack.append((node, new_branch))
         elif curr_node.next:
-            curr_branch.append(curr_node)
-            stack.append(curr_node.next[0])
+            curr_branch.add_node(curr_node)
+            stack.append((curr_node.next[0], curr_branch))
         else:
-            curr_branch.append(curr_node)
-            branches.append(curr_branch)
-            curr_branch = []
-    return branches, joints
+            curr_branch.add_node(curr_node)
+    return start_branch, joints
 
 
 
