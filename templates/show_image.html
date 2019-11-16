@@ -1,11 +1,22 @@
 {% extends 'base.html' %}
 
+{% block script %}
+    <script type="text/javascript" src="{{ url_for('static', filename='js/polyline.js') }}"></script>
+{% endblock %}
+
 {% block app %}
     <div class="app-container">
-        <img id="original" src="/uploads/{{ uploaded_image }}">
-        <img id="processed" style="display: none;">
+        <div style="width: 100vw; overflow: auto;">
+            <div style="position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                <img id="original" style="position: absolute; z-index: 1;" src="/uploads/{{ uploaded_image }}"
+                     alt="Original image">
+                <img id="processed" style="position: absolute; z-index: 2; display: none;" alt="Processed image">
+                <canvas id="canvas" style="position: relative; z-index: 3;"></canvas>
+            </div>
+        </div>
         <button type="submit" id="process">Process</button>
         <button type="button" id="toggle" style="display: none;">Toggle results</button>
+        <button type="button" id="measure" style="display: none;">Measuring tool</button>
         <div id="download" style="display: none;">
             <p style="text-align: center;">Download...</p>
             <a id="downloadOriginalImage">Original image</a>
@@ -17,6 +28,7 @@
     <script>
         const processButton = document.getElementById("process");
         const toggleButton = document.getElementById("toggle");
+        const measureButton = document.getElementById("measure");
         const originalImage = document.getElementById("original");
         const processedImage = document.getElementById("processed");
         const downloadDiv = document.getElementById("download");
@@ -24,6 +36,9 @@
         const downloadOriginalImage = document.getElementById("downloadOriginalImage");
         const downloadProcessedImage = document.getElementById("downloadProcessedImage");
         const downloadFoundObjects = document.getElementById("downloadFoundObjects");
+
+        canvas = document.getElementById("canvas");
+        ctx = canvas.getContext("2d");
 
         function showElements(...elements) {
             for (let e of elements) {
@@ -36,6 +51,19 @@
                 e.style.setProperty("display", "none");
             }
         }
+
+        let showingProcessedImage = false;
+
+        originalImage.addEventListener("load", function () {
+            setupCanvas(originalImage);
+            showElements(measureButton);
+            measureButton.addEventListener("click", function () {
+                resetPolyline();
+                startPolyline();
+            });
+        });
+
+        {#originalImage.src = originalImage.src;#}
 
         processButton.addEventListener("click", function () {
             hideElements(processButton);
@@ -62,15 +90,18 @@
 
                     hideElements(originalImage);
                     showElements(processedImage);
-                    let showingProcessedImage = true;
+
+                    showingProcessedImage = true;
 
                     toggleButton.addEventListener("click", function () {
                         if (showingProcessedImage) {
                             hideElements(processedImage);
                             showElements(originalImage);
+                            setupCanvas(originalImage);
                         } else {
                             hideElements(originalImage);
                             showElements(processedImage);
+                            setupCanvas(processedImage);
                         }
                         showingProcessedImage = !showingProcessedImage;
                     });

@@ -5,9 +5,9 @@
     <title>DICOM Parser</title>
     {#    {% block title %}{% endblock %}#}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    {% block script %}{% endblock %}
 </head>
 <body>
 {% block app %}{% endblock %}
 </body>
-{#<script src="{{ url_for('static', filename='js/main.js') }}"></script>#}
 </html>
