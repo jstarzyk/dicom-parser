@@ -462,16 +462,18 @@ class Branch:
 
 
 def divide_graph_by_branches(graph):
-    start_branch, joints = Branch(), []
+    start_branch, joints = Branch([]), []
+    graph.branches = [start_branch]
     stack = [(graph.start_node, start_branch)]
     while stack:
         curr_node, curr_branch = stack.pop()
         if len(curr_node.next) > 1:
             joints.append(curr_node)
-            for node in curr_node.next:
-                new_branch = Branch()
-                curr_branch.add_next_branch(next_branch)
-                stack.append((node, new_branch))
+            for next_node in curr_node.next:
+                new_branch = Branch([])
+                graph.branches.append(new_branch)
+                curr_branch.add_next_branch(new_branch)
+                stack.append((next_node, new_branch))
         elif curr_node.next:
             curr_branch.add_node(curr_node)
             stack.append((curr_node.next[0], curr_branch))

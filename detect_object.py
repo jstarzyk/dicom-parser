@@ -8,6 +8,7 @@ import numpy as np
 import argparse
 from graph import *
 from image_process import get_bin_image
+from dictionary import *
 import time
 
 
@@ -16,7 +17,9 @@ def init_parser():
     parser.add_argument('--input', '-i', dest='source', action='store',
                         default='input.DCM', help='path to input dicom file')
     parser.add_argument('--dict', '-d', dest='dict', action='store',
-                        default='sample_input.json', help='path to input dictionary description')  
+                        default='sample_input.json', help='path to input dictionary description')
+    parser.add_argument('--dest', dest='dest', action='store',
+                        default='result.txt', help='path to input dictionary description')  
     return parser
 
 
@@ -83,9 +86,29 @@ def process_image(dicom_file, return_graph_data=False):
 if __name__ == '__main__':
     arg_parser = init_parser()
     args = arg_parser.parse_args()
-    graph_image, graphs_processed, dist = process_image(args.source, True)
-    cv2.imshow('Found Objects', graph_image)
-    cv2.imwrite('tmp.png', graph_image)
-    while cv2.getWindowProperty('Found Objects', 0) >= 0:
-        cv2.waitKey(10)
-    cv2.destroyAllWindows()
+    image = get_image_from_dicom(args.source)
+    model_objects = load_objects(args.dict)
+
+    dist, bin_image = get_bin_image(image)
+    graphs = list(transform_to_graph(bin_image, r=10))
+    for graph in graphs:
+        fill_gapes(graph)
+
+    graphs_processed = list(map(get_largest_path_as_graph, graphs))
+
+    for graph in graphs_processed:
+        add_width_to_nodes(graph, dist)
+        add_tree_attributes(graph)
+        fill_width_for_conected(graph)
+
+    with open(args.dest, 'w') as dest:
+        GraphOfFoundObjects.create_and_write_graphs(dest, graphs_processed, model_objects)
+
+
+    # graph_image = get_graph_image(graphs_processed, image, width=False)
+
+    # cv2.imshow('Found Objects', graph_image)
+    # cv2.imwrite('tmp.png', graph_image)
+    # while cv2.getWindowProperty('Found Objects', 0) >= 0:
+    #     cv2.waitKey(10)
+    # cv2.destroyAllWindows()
