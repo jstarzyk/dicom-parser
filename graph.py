@@ -481,9 +481,39 @@ def divide_graph_by_branches(graph):
             curr_branch.add_node(curr_node)
     return start_branch, joints
 
+def find_peaks(dist, width = 10):
+    peaks = []
+    new_dist = np.hstack([np.zeros(width), dist, np.zeros(width)])
+    for start in np.arange(width, len(new_dist) - width):
+        if np.all(new_dist[start] >= new_dist[start-width:start+width+1]):
+            peaks.append(start - width)
+        if np.all(new_dist[start] <= new_dist[start-width:start+width+1]):
+            peaks.append(start - width)
+    if peaks[0] != 0:
+        peaks = np.hstack([[0], peaks])
+    if peaks[-1] != dist.shape[0] - 1:
+        peaks = np.hstack([peaks, [dist.shape[0] - 1]])
+    return peaks
 
+def get_dist_to_line(points):
+    x1, y1 = points[0]
+    x2, y2 = points[-1]
+    xs, ys = points[:, 0], points[:, 1]
+    return ((x2 - x1) * (y1 - ys) - (x1 - xs) * (y2 - y1)) / np.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
 
+def get_angles(peaks, points):
+    p1, p2, p3 = points[peaks][:-2], points[peaks][1:-1], points[peaks][2:]
+    v1, v2 = p1 - p2, p1 - p3
+    norm_v1, norm_v2 = np.linalg.norm(v1,axis=1), np.linalg.norm(v2,axis=1)
+    idx = np.where((norm_v1 > 0) & (norm_v2 > 0))
+    return np.degrees(np.arccos(np.sum(v1[idx] * v2[idx], axis=1) / (norm_v1[idx] * norm_v2[idx])))
 
+def get_maxium_angle(nodes):
+    if len(nodes) < 2:
+        return 0.
+    points = np.array([node.coord for node in nodes])
+    dist = get_dist_to_line(points)
+    peaks = find_peaks(dist, int(len(dist) / 15))
+    return np.max(get_angles(peaks, points))
 
-
-        
+    

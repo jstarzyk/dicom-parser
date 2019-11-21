@@ -102,6 +102,7 @@ def find_objects_on_graph(model_objects, graph):
             object_desc['end_coords'] = branch.nodes[object_desc['end_index']].coord
             mid_index = object_desc['start_index'] + (object_desc['end_index'] - object_desc['start_index']) // 2
             object_desc['center_coords'] = branch.nodes[mid_index].coord
+            object_desc['max_angle'] = get_maxium_angle(branch.nodes[object_desc['start_index']:object_desc['end_index']])
             found_objects.append(FoundObject(object_desc))
         branch.found_objects = found_objects
         for next_branch in branch.next:
@@ -124,6 +125,8 @@ class FoundObject:
             text += " Maximal width: %.2f;" % self.description['max_width']
         if 'center_coords' in self.description:
             text += " Location: %d, %d;" % self.description['center_coords']
+        if 'max_angle' in self.description:
+            text += " Max angle: %0.1f°;" % self.description['max_angle']
         return text
 
 
