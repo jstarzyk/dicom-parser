@@ -2,7 +2,31 @@
   {
     "id": "a",
     "name": "Segment A",
-    "slices": [[0, 10, 1], [0.5, 6], [1.0, 8]],
-    "length": 20
+    "slices": [[0, 13, 3], [1.0, 13, 3]],
+    "length": [50, 150]
+  },
+  {
+    "id": "b",
+    "name": "Segment B",
+    "slices": [[0, 10, 3], [1.0, 10, 3]],
+    "length": [25, 100]
+  },
+  {
+    "id": "c",
+    "name": "Segment C",
+    "slices": [[0, 6, 2], [1.0, 6, 2]],
+    "length": [25, 100]
+  },
+  {
+    "id": "d",
+    "name": "Segment D",
+    "slices": [[0, 4, 2], [1.0, 4, 2]],
+    "length": [25, 100]
+  },
+  {
+    "id": "e",
+    "name": "Segment E",
+    "slices": [[0, 2, 2], [1.0, 2, 2]],
+    "length": [25, 100]
   }
 ]
