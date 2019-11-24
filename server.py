@@ -64,10 +64,11 @@ def show_image(filename):
 def process_image():
     filename = request.json['filename']
     try:
-        image = do.process_image(filename)
-        # image = do.get_image_from_dicom(filename)
+        original_image = do.get_image_from_dicom(filename)
+        graphs_processed = do.process_image(original_image)
+        graph_image = do.get_graph_image(graphs_processed, original_image)
         img_io = BytesIO()
-        Image.fromarray(image).save(img_io, 'PNG')
+        Image.fromarray(graph_image).save(img_io, 'PNG')
         img_io.seek(0)
         return b64encode(img_io.read())
     except IOError:

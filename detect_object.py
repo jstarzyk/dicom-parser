@@ -34,6 +34,7 @@ def get_colors(index, n=3):
                 colors.append(np.array([r, g, b]))
     return colors[index % len(colors)]
 
+
 def get_graph_image(graphs, gray=None, width=False):
     if gray is not None:
         img = cv2.cvtColor(gray,cv2.COLOR_GRAY2RGB)
@@ -62,44 +63,29 @@ def get_image_from_dicom(dicom_file):
     return np.uint8(image)
 
 
-def process_image(dicom_file, return_graph_data=False):
-    image = get_image_from_dicom(dicom_file)
+def process_image(image):
     dist, bin_image = get_bin_image(image)
     graphs = list(transform_to_graph(bin_image, r=10))
+
     for graph in graphs:
         fill_gapes(graph)
 
-    graphs_processed = list(map(get_largest_path_as_graph, graphs))
+    result = list(map(get_largest_path_as_graph, graphs))
 
-    for graph in graphs_processed:
+    for graph in result:
         add_width_to_nodes(graph, dist)
         add_tree_attributes(graph)
         fill_width_for_conected(graph)
 
-    graph_image = get_graph_image(graphs_processed, image, width=False)
-    if return_graph_data:
-        return np.uint8(graph_image), graphs_processed, dist
-    else:
-        return np.uint8(graph_image)
+    return result
 
 
 if __name__ == '__main__':
     arg_parser = init_parser()
     args = arg_parser.parse_args()
-    image = get_image_from_dicom(args.source)
+    original_image = get_image_from_dicom(args.source)
     model_objects = load_objects(args.dict)
-
-    dist, bin_image = get_bin_image(image)
-    graphs = list(transform_to_graph(bin_image, r=10))
-    for graph in graphs:
-        fill_gapes(graph)
-
-    graphs_processed = list(map(get_largest_path_as_graph, graphs))
-
-    for graph in graphs_processed:
-        add_width_to_nodes(graph, dist)
-        add_tree_attributes(graph)
-        fill_width_for_conected(graph)
+    graphs_processed = process_image(original_image)
 
     with open(args.dest, 'w') as dest:
         GraphOfFoundObjects.create_and_write_graphs(dest, graphs_processed, model_objects)
