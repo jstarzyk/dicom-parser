@@ -9,6 +9,7 @@ import argparse
 from graph import *
 from image_process import get_bin_image
 from dictionary import *
+from print_objects import *
 import time
 
 
@@ -19,11 +20,13 @@ def init_parser():
     parser.add_argument('--dict', '-d', dest='dict', action='store',
                         default='sample_input.json', help='path to input dictionary description')
     parser.add_argument('--dest', dest='dest', action='store',
-                        default='result.txt', help='path to input dictionary description')  
+                        default='result.txt', help='path to output found objects description')
+    parser.add_argument('--img_dest', dest='img_dest', action='store',
+                        default='result.png', help='path to output image with objects')  
     return parser
 
 
-def get_colors(index, n=3):
+def get_colors(n=3):
     colors = []
     values = np.linspace(0, 255, n)[::-1]
     for r in values:
@@ -32,7 +35,7 @@ def get_colors(index, n=3):
                 if r == g and g == b:
                     continue
                 colors.append(np.array([r, g, b]))
-    return colors[index % len(colors)]
+    return colors
 
 
 def get_graph_image(graphs, gray=None, width=False):
@@ -40,8 +43,8 @@ def get_graph_image(graphs, gray=None, width=False):
         img = cv2.cvtColor(gray,cv2.COLOR_GRAY2RGB)
     else:
         img = np.full((512, 512, 3), 255)
-    for i, graph in enumerate(graphs):
-        color = get_colors(i)
+    colors = get_colors()
+    for i, (color, graph) in enumerate(zip(colors, graphs)):
         for node in graph.nodes:
             y, x = node.coord
             if width:
@@ -88,7 +91,15 @@ if __name__ == '__main__':
     graphs_processed = process_image(original_image)
 
     with open(args.dest, 'w') as dest:
-        GraphOfFoundObjects.create_and_write_graphs(dest, graphs_processed, model_objects)
+        graphs_of_objects = GraphOfFoundObjects.create_and_write_graphs(
+            graphs_processed, 
+            model_objects, 
+            dest
+        )
+
+    objects_image = print_objects_on_graphs(graphs_of_objects, image, fill=False, method='color_per_object')
+
+    cv2.imwrite(args.img_dest, objects_image)
 
 
     # graph_image = get_graph_image(graphs_processed, image, width=False)

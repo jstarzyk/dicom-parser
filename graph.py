@@ -453,6 +453,8 @@ class Branch:
     def __init__(self, nodes=[]):
         self.nodes = nodes
         self.next = []
+        self.joint = None
+        self.prev_joint = None
 
     def add_node(self, node):
         self.nodes.append(node)
@@ -469,9 +471,11 @@ def divide_graph_by_branches(graph):
         curr_node, curr_branch = stack.pop()
         if len(curr_node.next) > 1:
             joints.append(curr_node)
+            curr_branch.joint = curr_node
             for next_node in curr_node.next:
                 new_branch = Branch([])
                 graph.branches.append(new_branch)
+                new_branch.prev_joint = curr_node
                 curr_branch.add_next_branch(new_branch)
                 stack.append((next_node, new_branch))
         elif curr_node.next:

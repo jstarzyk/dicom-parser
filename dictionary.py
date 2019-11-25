@@ -69,7 +69,7 @@ def find_objects_on_branch(model_objects, branch):
                 objects.append(dict(
                     name='Free space', 
                     start_index=start_free_space,
-                    end_index=start,
+                    end_index=start - 1,
                     length=start - start_free_space,
                     min_width=min(branch[start:start + max_length]),
                     max_width=max(branch[start:start + max_length])))
@@ -82,7 +82,7 @@ def find_objects_on_branch(model_objects, branch):
                 max_width=max(branch[start:start + max_length])
             )
             objects.append(object_desc)
-            start += max_length + 1
+            start += max_length
             start_free_space = start
         else:
             start += 1
@@ -105,6 +105,7 @@ def find_objects_on_graph(model_objects, graph):
             object_desc['max_angle'] = get_maxium_angle(branch.nodes[object_desc['start_index']:object_desc['end_index']])
             found_objects.append(FoundObject(object_desc))
         branch.found_objects = found_objects
+        branch.max_angle = get_maxium_angle(branch.nodes)
         for next_branch in branch.next:
             stack.append(next_branch)
     return start_branch, joints
@@ -138,28 +139,27 @@ class GraphOfFoundObjects:
 
 
     def __repr__(self):
-        stack = [(self.start_branch, '\t')]
-        text = "%s (length=%d):\n" % (self.name, self.length)
+        stack = [(self.start_branch, '1', '\t')]
+        text = "%s (length = %d):\n" % (self.name, self.length)
         while stack:
-            curr_branch, prefix = stack.pop(0)
-            text += prefix + str(curr_branch.found_objects[0]) + '\n'
-            for found_object in curr_branch.found_objects[1:]:
-                text += prefix[:-4] + '\t' + str(found_object) + '\n'
-            if len(curr_branch.next) == 1:
-                stack.append((curr_branch.next[0], prefix[:-4] + '   |'))
-            else:
-                for next_branch in curr_branch.next:
-                    stack.append((next_branch, prefix + '∟___'))
+            curr_branch, branch_no, prefix = stack.pop(0)
+            text += prefix + "Branch %s (length = %d, max angle = %0.1f°):\n" % \
+                (branch_no, len(curr_branch.nodes), curr_branch.max_angle) 
+            for found_object in curr_branch.found_objects:
+                text += prefix + str(found_object) + '\n'
+            for i, next_branch in enumerate(curr_branch.next):
+                stack.append((next_branch, branch_no + '.' + str(i + 1), prefix + '\t'))
         return text
 
 
     @staticmethod
-    def create_and_write_graphs(file, graphs, model_objects):
+    def create_and_write_graphs(graphs, model_objects, file=None):
         graphs_with_objects = []
         for i, graph in enumerate(graphs):
             graph_with_objects = GraphOfFoundObjects(graph, model_objects, "Graph #%d" % i)
-            file.write(graph_with_objects.__repr__())
             graphs_with_objects.append(graph_with_objects)
+            if not file is None:
+                file.write(graph_with_objects.__repr__())
         return graphs_with_objects
 
 
