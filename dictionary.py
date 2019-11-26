@@ -1,7 +1,7 @@
-# import networkx as nx
+import networkx as nx
 import json
 from graph import *
-# import jsonpickle
+import jsonpickle
 
 
 class ModelObject:
@@ -54,7 +54,7 @@ class ModelObject:
         text += 'Slices: %s\n' % str(self.slices)
         text += 'Length: %s\n' % str(self.length)
         return text
-        
+
 def find_objects_on_branch(model_objects, branch):
     start, start_free_space = 0, 0
     objects = []
@@ -67,7 +67,7 @@ def find_objects_on_branch(model_objects, branch):
             index = objects_lenghts.index(max_length)
             if start > start_free_space:
                 objects.append(dict(
-                    name='Free space', 
+                    name='Free space',
                     start_index=start_free_space,
                     end_index=start - 1,
                     length=start - start_free_space,
@@ -115,7 +115,7 @@ class FoundObject:
     def __init__(self, object_desc):
         self.description = object_desc
         assert 'name' in object_desc
-    
+
     def __str__(self):
         text = "Object ID: %s;" % self.description['name']
         if 'length' in self.description:
@@ -144,7 +144,7 @@ class GraphOfFoundObjects:
         while stack:
             curr_branch, branch_no, prefix = stack.pop(0)
             text += prefix + "Branch %s (length = %d, max angle = %0.1f°):\n" % \
-                (branch_no, len(curr_branch.nodes), curr_branch.max_angle) 
+                (branch_no, len(curr_branch.nodes), curr_branch.max_angle)
             for found_object in curr_branch.found_objects:
                 text += prefix + str(found_object) + '\n'
             for i, next_branch in enumerate(curr_branch.next):
@@ -162,19 +162,56 @@ class GraphOfFoundObjects:
                 file.write(graph_with_objects.__repr__())
         return graphs_with_objects
 
+    @staticmethod
+    def parse_networkx_node(branch):
+        return {"found_objects": branch.found_objects, "max_angle": branch.max_angle}
+
+    @staticmethod
+    def to_networkx_graph(graph):
+        dict_of_lists = {}
+        nodes = {}
+        stack = [(0, graph.start_branch)]
+
+        while stack:
+            i, branch = stack.pop(0)
+            adjacent_branches = []
+            j = i + 1
+
+            for next_branch in branch.next:
+                adjacent_branches.append(j)
+                stack.append((j, next_branch))
+                j += 1
+
+            nodes[i] = GraphOfFoundObjects.parse_networkx_node(branch)
+            dict_of_lists[i] = adjacent_branches
+
+        g = nx.from_dict_of_lists(dict_of_lists)
+        for i, attr in nodes.items():
+            g.add_node(i, **attr)
+
+        return g
+
+    @staticmethod
+    def create_and_write_networkx_graphs(graphs, model_objects, file=None):
+        networkx_graphs = []
+
+        for i, graph in enumerate(graphs):
+            graph_with_objects = GraphOfFoundObjects(graph, model_objects, "Graph #%d" % i)
+            networkx_graph = GraphOfFoundObjects.to_networkx_graph(graph_with_objects)
+            adjacency_data = nx.readwrite.json_graph.node_link_data(networkx_graph)
+
+            networkx_graphs.append(adjacency_data)
+
+        if file is not None:
+            file.write(jsonpickle.encode(networkx_graphs, make_refs=False))
+
+        return networkx_graphs
+
 
 def load_objects(filename):
     with open(filename) as f:
         objects_desc = json.loads(f.read())
         return [ModelObject(desc) for desc in objects_desc]
-        
-
-
-def save(found_objects_graph, filename='found_objects'):
-    data = nx.readwrite.json_graph.adjacency_data(found_objects_graph)
-    s = json.dumps(data)
-    with open(filename, 'w') as dest:
-        dest.write(s)
 
 
 if __name__ == '__main__':
