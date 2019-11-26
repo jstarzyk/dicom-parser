@@ -164,7 +164,7 @@ class GraphOfFoundObjects:
 
     @staticmethod
     def parse_networkx_node(branch):
-        return {"found_objects": branch.found_objects, "max_angle": branch.max_angle}
+        return {"found_objects": [o.description for o in branch.found_objects], "max_angle": branch.max_angle}
 
     @staticmethod
     def to_networkx_graph(graph):
@@ -203,7 +203,7 @@ class GraphOfFoundObjects:
             networkx_graphs.append(adjacency_data)
 
         if file is not None:
-            file.write(jsonpickle.encode(networkx_graphs, make_refs=False))
+            json.dump(networkx_graphs, file, default=lambda x: x.item())
 
         return networkx_graphs
 
