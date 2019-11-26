@@ -69,21 +69,28 @@
             hideElements(processButton);
             showElements(processing);
 
-            const xhr = new XMLHttpRequest();
-            const filename = window.location.pathname.split("/").slice(-1)[0];
-            const requestData = JSON.stringify({"filename": filename});
+            const url = new URL(window.location.href);
+            const imageFilename = url.searchParams.get("image");
+            const dictionaryFilename = url.searchParams.get("dictionary");
+            const requestData = JSON.stringify({"image": imageFilename, "dictionary": dictionaryFilename});
 
-            xhr.open("POST", "/process_image", true);
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", "/process_files", true);
             xhr.setRequestHeader("Content-Type", "application/json");
 
             xhr.onreadystatechange = function () {
                 if (this.readyState === XMLHttpRequest.DONE && this.status === 200) {
-                    processedImage.src = "data:image/png;charset=utf-8;base64, " + this.responseText;
+                    const data = JSON.parse(this.responseText);
+
+                    processedImage.src = "data:image/png;charset=utf-8;base64, " + data["processed_image"];
+                    const foundObjects = "data:text/json;charset=utf-8, " + encodeURI(data["networkx_json_graph_list"]);
 
                     downloadOriginalImage.href = originalImage.src;
-                    downloadOriginalImage.download = `${filename}_original.png`;
+                    downloadOriginalImage.download = `${imageFilename}_original.png`;
                     downloadProcessedImage.href = processedImage.src;
-                    downloadProcessedImage.download = `${filename}_processed.png`;
+                    downloadProcessedImage.download = `${imageFilename}_processed.png`;
+                    downloadFoundObjects.href = foundObjects;
+                    downloadFoundObjects.download = `${imageFilename}_networkx_json_graph_list.json`;
 
                     hideElements(processing);
                     showElements(toggleButton, downloadDiv);

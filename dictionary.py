@@ -1,7 +1,6 @@
 import networkx as nx
 import json
 from graph import *
-import jsonpickle
 
 
 class ModelObject:
@@ -151,6 +150,9 @@ class GraphOfFoundObjects:
                 stack.append((next_branch, branch_no + '.' + str(i + 1), prefix + '\t'))
         return text
 
+    @staticmethod
+    def find_objects_in_graphs(graphs, model_objects):
+        return [GraphOfFoundObjects(graph, model_objects, "Graph #%d" % i) for i, graph in enumerate(graphs)]
 
     @staticmethod
     def create_and_write_graphs(graphs, model_objects, file=None):
@@ -167,7 +169,7 @@ class GraphOfFoundObjects:
         return {"found_objects": [o.description for o in branch.found_objects], "max_angle": branch.max_angle}
 
     @staticmethod
-    def to_networkx_graph(graph):
+    def parse_networkx_graph(graph):
         dict_of_lists = {}
         nodes = {}
         stack = [(0, graph.start_branch)]
@@ -192,20 +194,12 @@ class GraphOfFoundObjects:
         return g
 
     @staticmethod
-    def create_and_write_networkx_graphs(graphs, model_objects, file=None):
-        networkx_graphs = []
+    def serialize(graphs):
+        return json.dumps(graphs, default=lambda x: x.item())
 
-        for i, graph in enumerate(graphs):
-            graph_with_objects = GraphOfFoundObjects(graph, model_objects, "Graph #%d" % i)
-            networkx_graph = GraphOfFoundObjects.to_networkx_graph(graph_with_objects)
-            adjacency_data = nx.readwrite.json_graph.node_link_data(networkx_graph)
-
-            networkx_graphs.append(adjacency_data)
-
-        if file is not None:
-            json.dump(networkx_graphs, file, default=lambda x: x.item())
-
-        return networkx_graphs
+    @staticmethod
+    def to_networkx_json_graph_list(graphs):
+        return [nx.readwrite.json_graph.node_link_data(GraphOfFoundObjects.parse_networkx_graph(graph)) for graph in graphs]
 
 
 def load_objects(filename):

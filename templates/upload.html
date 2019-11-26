@@ -2,40 +2,60 @@
 
 {% block app %}
     <div class="app-container">
-        <label for="file">Select DICOM image</label>
         <form id="upload_form" enctype="multipart/form-data">
-            <input type="file"
-                   id="file" name="file"
-                   accept=".dcm">
+            <div>
+                <label for="image">Select DICOM image</label>
+                <input id="image" name="image" type="file" accept="application/dicom">
+            </div>
+            <div>
+                <label for="dictionary">Select object dictionary</label>
+                <input id="dictionary" name="dictionary" type="file" accept="application/json">
+            </div>
         </form>
         <button type="submit" id="submit">Submit</button>
     </div>
     <script>
-        document.getElementById("submit").addEventListener("click", function () {
-            const files = document.getElementById("file").files;
-            if (files.length === 0) {
+        function getFile(inputElement) {
+            const files = inputElement.files;
+            if (files.length < 1) {
                 window.alert("File isn't selected");
                 return;
+            } else if (files.length > 1) {
+                window.alert("Too many files selected");
+                return;
             }
+            return files[0];
+        }
+
+        document.getElementById("submit").addEventListener("click", function () {
+            const uploadForm = document.getElementById("upload_form");
+            const image = document.getElementById("image");
+            const dictionary = document.getElementById("dictionary");
+
+            const formData = new FormData(uploadForm);
+            const imageFile = getFile(image);
+            const dictionaryFile = getFile(dictionary);
+            if (!(imageFile && dictionaryFile)) return;
+
+            formData.append(image.name, imageFile);
+            formData.append(dictionary.name, dictionaryFile);
 
             const xhr = new XMLHttpRequest();
-            const formData = new FormData(document.getElementById("upload_form"));
-            formData.append("image", files[0]);
-
-            // xhr.setRequestHeader('Content-Type', "multipart/form-data");
-            xhr.open("POST", "/upload_image", true);
-
+            xhr.open("POST", "/upload_files", true);
             xhr.onreadystatechange = function () {
                 if (this.readyState === XMLHttpRequest.DONE && this.status === 200) {
                     const data = JSON.parse(this.responseText);
-                    if ("error" in data) {
-                        window.alert(data.error);
+                    const image = data.image;
+                    const dictionary = data.dictionary;
+                    if ("error" in image) {
+                        window.alert(image.error);
+                    } else if ("error" in dictionary) {
+                        window.alert(dictionary.error);
                     } else {
-                        window.location.href = "/show_image/" + data.filename;
+                        window.location.href = `/show_image?image=${image.filename}&dictionary=${dictionary.filename}`;
                     }
                 }
             };
-
             xhr.send(formData);
         });
     </script>
