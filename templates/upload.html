@@ -2,19 +2,58 @@
 
 {% block app %}
     <div class="app-container">
-        <form id="upload_form" enctype="multipart/form-data">
-            <div>
-                <label for="image">Select DICOM image</label>
-                <input id="image" name="image" type="file" accept="application/dicom">
-            </div>
-            <div>
-                <label for="dictionary">Select object dictionary</label>
-                <input id="dictionary" name="dictionary" type="file" accept="application/json">
-            </div>
-        </form>
-        <button type="submit" id="submit">Submit</button>
+        <div class="box" style="margin-bottom: 2.5rem;">
+            <form id="upload_form" enctype="multipart/form-data">
+                <div class="upload">
+                    <div id="image-upload" class="file has-name is-boxed">
+                        <label class="file-label">
+                            <input id="image" name="image" type="file" accept="application/dicom" class="file-input">
+                            <span class="file-cta">
+                            <span class="file-icon">
+                                <i class="fas fa-upload"></i>
+                            </span>
+                            <span class="file-label">
+                                Select DICOM image…
+                            </span>
+                        </span>
+                            <span class="file-name"></span>
+                        </label>
+                    </div>
+                    <div id="dictionary-upload" class="file has-name is-boxed">
+                        <label class="file-label">
+                            <input id="dictionary" name="dictionary" type="file" accept="application/json"
+                                   class="file-input">
+                            <span class="file-cta">
+                        <span class="file-icon">
+                            <i class="fas fa-upload"></i>
+                        </span>
+                        <span class="file-label">
+                            Select object dictionary…
+                        </span>
+                    </span>
+                            <span class="file-name"></span>
+                        </label>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="control">
+            <button class="button is-link" type="submit" id="submit">Submit</button>
+        </div>
     </div>
     <script>
+        const fileInputs = document.querySelectorAll("input[type=file]");
+        fileInputs.forEach(fileInput => fileInput.addEventListener("change", showFilename));
+        window.addEventListener("load", () => fileInputs.forEach(fileInput => showFilename(fileInput)));
+
+        function showFilename(eventOrElement) {
+            const fileInput = eventOrElement.currentTarget || eventOrElement;
+            if (fileInput.files.length > 0) {
+                const fileName = fileInput.parentElement.querySelector(".file-name");
+                fileName.textContent = fileInput.files[0].name;
+            }
+        }
+
         function getFile(inputElement) {
             const files = inputElement.files;
             if (files.length < 1) {
