@@ -6,19 +6,58 @@ body {
     margin: 0;
 }
 
-/*.main-app {*/
-/*    display: block;*/
-/*    margin-left: auto;*/
-/*    margin-right: auto;*/
-/*}*/
-
 .app-container {
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     height: 100%;
-    /*position: relative;*/
-    /*margin-left: auto;*/
-    /*margin-right: auto;*/
+}
+
+.file-name {
+    text-align: center !important;
+    max-width: unset !important;
+}
+
+.file-label {
+    width: 100% !important;
+    text-align: center !important;
+}
+
+.app-header {
+    position: fixed;
+    top: 0;
+    z-index: 100;
+    width: 100%;
+}
+
+.app-header-title {
+    padding: 1rem;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    background: black;
+    text-align: center;
+    color: white;
+    line-height: normal;
+}
+
+.app-header-bar {
+    height: 10px;
+    width: 100%;
+    background: mediumspringgreen;
+}
+
+.app-header-title-row {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+}
+
+.upload {
+    display: grid;
+    grid-template-columns: auto;
+    grid-template-rows: auto auto;
+    grid-row-gap: 2.5rem;
 }

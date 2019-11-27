@@ -3,11 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <title>DICOM Parser</title>
-    {#    {% block title %}{% endblock %}#}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bulma.min.css') }}">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.11.2/css/all.css">
     {% block script %}{% endblock %}
 </head>
 <body>
+<div class="app-header">
+    <div class="app-header-title">
+        <div style="width: 80px; min-width: 80px;">
+            <div class="app-header-title-row" style="font-size: smaller;">
+                <span>D</span>
+                <span>I</span>
+                <span>C</span>
+                <span>O</span>
+                <span>M</span>
+            </div>
+            <div class="app-header-title-row" style="font-size: medium; font-weight: bold;">
+                <span>P</span>
+                <span>A</span>
+                <span>R</span>
+                <span>S</span>
+                <span>E</span>
+                <span>R</span>
+            </div>
+        </div>
+    </div>
+    <div class="app-header-bar"></div>
+</div>
 {% block app %}{% endblock %}
 </body>
 </html>
