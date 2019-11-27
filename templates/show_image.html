@@ -57,6 +57,7 @@
         originalImage.addEventListener("load", function () {
             setupCanvas(originalImage);
             showElements(measureButton);
+            enableResizing();
             measureButton.addEventListener("click", function () {
                 resetPolyline();
                 startPolyline();

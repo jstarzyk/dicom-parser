@@ -36,9 +36,12 @@ function resetPolyline() {
     resetPolylineData();
 }
 
-function addListeners() {
+function enableResizing() {
+    onresize();
     window.addEventListener("resize", onresize);
+}
 
+function addListeners() {
     window.addEventListener("keyup", onkeyup);
     canvas.addEventListener("pointerdown", onpointerdown);
     canvas.addEventListener("pointerup", onpointerup);
@@ -77,7 +80,6 @@ function setupCanvas(img) {
     canvas_ = canvas.parentElement;
     canvas__ = canvas_.parentElement;
     canvas_.style.minWidth = canvas.width + "px";
-    onresize();
 
     ctx.font = font;
     ctx.textBaseline = textBaseline;
