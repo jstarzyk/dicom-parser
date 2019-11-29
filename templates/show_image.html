@@ -8,22 +8,54 @@
     <div class="app-container">
         <div style="width: 100vw; overflow: auto;">
             <div style="position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center;">
-                <img id="original" style="position: absolute; z-index: 1;" src="/uploads/{{ uploaded_image }}"
+                <img id="original" class="box" style="position: absolute; z-index: 1; margin-bottom: unset;"
+                     src="/uploads/{{ uploaded_image }}"
                      alt="Original image">
-                <img id="processed" style="position: absolute; z-index: 2; display: none;" alt="Processed image">
+                <img id="processed" class="box"
+                     style="position: absolute; z-index: 2; display: none; margin-bottom: unset;" alt="Processed image">
                 <canvas id="canvas" style="position: relative; z-index: 3;"></canvas>
             </div>
         </div>
-        <button type="submit" id="process">Process</button>
-        <button type="button" id="toggle" style="display: none;">Toggle results</button>
-        <button type="button" id="measure" style="display: none;">Measuring tool</button>
-        <div id="download" style="display: none;">
-            <p style="text-align: center;">Download...</p>
-            <a id="downloadOriginalImage">Original image</a>
-            <a id="downloadProcessedImage">Processed image</a>
-            <a id="downloadFoundObjects" disabled>Found objects</a>
+        <div class="control" style="margin-bottom: 2rem;">
+            <button class="button is-rounded is-link" type="submit" id="process">Process</button>
         </div>
-        <p id="processing" style="display: none;">Processing image</p>
+        <div class="buttons field has-addons are-small">
+            <div class="control">
+                <button class="button is-light" type="button" id="measure">
+                    Measuring tool
+                </button>
+            </div>
+            <div class="control">
+                <button class="button is-light is-link" type="button" id="toggle">
+                    Show results
+                </button>
+            </div>
+            <div id="download" class="dropdown">
+                <div class="dropdown-trigger">
+                    <button class="button is-light" aria-haspopup="true" aria-controls="dropdown-menu">
+                    <span>
+                        Download…
+                    </span>
+                        <span class="icon is-small">
+                    <i class="fas fa-angle-down" aria-hidden="true"></i>
+                </span>
+                    </button>
+                </div>
+                <div class="dropdown-menu" id="dropdown-menu" role="menu">
+                    <div class="dropdown-content">
+                        <a class="dropdown-item" id="downloadOriginalImage">
+                            Original image
+                        </a>
+                        <a class="dropdown-item disabled" id="downloadProcessedImage">
+                            Processed image
+                        </a>
+                        <a class="dropdown-item disabled" id="downloadFoundObjects">
+                            Found objects
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
     <script>
         const processButton = document.getElementById("process");
@@ -32,10 +64,13 @@
         const originalImage = document.getElementById("original");
         const processedImage = document.getElementById("processed");
         const downloadDiv = document.getElementById("download");
-        const processing = document.getElementById("processing");
         const downloadOriginalImage = document.getElementById("downloadOriginalImage");
         const downloadProcessedImage = document.getElementById("downloadProcessedImage");
         const downloadFoundObjects = document.getElementById("downloadFoundObjects");
+
+        const url = new URL(window.location.href);
+        const imageFilename = url.searchParams.get("image");
+        const dictionaryFilename = url.searchParams.get("dictionary");
 
         canvas = document.getElementById("canvas");
         ctx = canvas.getContext("2d");
@@ -54,25 +89,30 @@
 
         let showingProcessedImage = false;
 
+        downloadDiv.addEventListener("click", function (event) {
+            event.currentTarget.classList.toggle("is-active");
+        });
+
         originalImage.addEventListener("load", function () {
+            downloadOriginalImage.href = originalImage.src;
+            downloadOriginalImage.download = `${imageFilename}_original.png`;
+
             setupCanvas(originalImage);
             showElements(measureButton);
+            toggleButton.disabled = true;
             enableResizing();
+
             measureButton.addEventListener("click", function () {
                 resetPolyline();
                 startPolyline();
             });
         });
 
-        {#originalImage.src = originalImage.src;#}
+        originalImage.src = originalImage.src;
 
         processButton.addEventListener("click", function () {
-            hideElements(processButton);
-            showElements(processing);
+            processButton.classList.add("is-loading");
 
-            const url = new URL(window.location.href);
-            const imageFilename = url.searchParams.get("image");
-            const dictionaryFilename = url.searchParams.get("dictionary");
             const requestData = JSON.stringify({"image": imageFilename, "dictionary": dictionaryFilename});
 
             const xhr = new XMLHttpRequest();
@@ -86,22 +126,25 @@
                     processedImage.src = "data:image/png;charset=utf-8;base64, " + data["processed_image"];
                     const foundObjects = "data:text/json;charset=utf-8, " + encodeURI(data["networkx_json_graph_list"]);
 
-                    downloadOriginalImage.href = originalImage.src;
-                    downloadOriginalImage.download = `${imageFilename}_original.png`;
                     downloadProcessedImage.href = processedImage.src;
                     downloadProcessedImage.download = `${imageFilename}_processed.png`;
                     downloadFoundObjects.href = foundObjects;
                     downloadFoundObjects.download = `${imageFilename}_networkx_json_graph_list.json`;
 
-                    hideElements(processing);
-                    showElements(toggleButton, downloadDiv);
+                    downloadProcessedImage.classList.remove("disabled");
+                    downloadFoundObjects.classList.remove("disabled");
+
+                    processButton.classList.remove("is-loading");
+
+                    toggleButton.disabled = false;
+                    toggleButton.classList.add("is-active");
 
                     hideElements(originalImage);
                     showElements(processedImage);
 
                     showingProcessedImage = true;
 
-                    toggleButton.addEventListener("click", function () {
+                    toggleButton.onclick = function (event) {
                         if (showingProcessedImage) {
                             hideElements(processedImage);
                             showElements(originalImage);
@@ -111,8 +154,9 @@
                             showElements(processedImage);
                             setupCanvas(processedImage);
                         }
+                        event.currentTarget.classList.toggle("is-active");
                         showingProcessedImage = !showingProcessedImage;
-                    });
+                    };
                 }
             };
 

@@ -12,7 +12,7 @@ const distanceBox = {
     foreground: "white"
 };
 const canvasInfo = {
-    paddingY: Math.abs(distanceBox.offsetY),
+    paddingY: 2 * Math.abs(distanceBox.offsetY),
     paddingX: 9 * distanceBox.height,
 };
 const font = `${distanceBox.height}px sans-serif`;
