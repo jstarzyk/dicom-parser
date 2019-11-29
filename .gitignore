@@ -5,6 +5,8 @@ __pycache__/
 .idea
 .vscode
 images/
+.png
+.ipnb
 
 # C extensions
 *.so

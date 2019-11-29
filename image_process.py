@@ -13,7 +13,7 @@ def morphologyEx(image, kernel_size=5):
     
 def distanceTransform(image):
     dist = cv2.distanceTransform(image, cv2.DIST_L2, 5)
-    return dist, cv2.normalize(dist, dist, 0, 255, cv2.NORM_MINMAX)
+    return dist, cv2.normalize(np.copy(dist), np.copy(dist), 0, 255, cv2.NORM_MINMAX)
     
 def laplacian(image):
     lapl = cv2.Laplacian(np.uint8(image), cv2.CV_64FC1, ksize=7)

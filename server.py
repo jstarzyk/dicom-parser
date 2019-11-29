@@ -14,32 +14,44 @@ app = Flask(__name__)
 UPLOAD_FOLDER = os.path.abspath(os.path.dirname(__file__)) + '/images'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
+
 def send_image(image):
     img_io = BytesIO()
     image.save(img_io, 'PNG')
     img_io.seek(0)
     return send_file(img_io, mimetype='image/png')
 
+
+def save_file(file):
+    filename = secure_filename(file.filename)
+    file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+    return filename
+
+
+def process_file(files, name, extension):
+    if name not in files:
+        return {"error": "No file was received"}
+    file = request.files[name]
+    if file.filename == '':
+        return {"error": "Wrong filename"}
+    if file and file.filename.lower().endswith(extension):
+        filename = save_file(file)
+        return {"filename": filename}
+
+
 @app.route("/")
 def home():
     return render_template("upload.html")
 
 
-@app.route("/upload_image", methods=['GET', 'POST'])
-def upload_image():
+@app.route("/upload_files", methods=['GET', 'POST'])
+def upload_files():
     if request.method == 'POST':
-        if 'image' not in request.files:
-            return jsonify({"error": "No file was received"})
-        file = request.files['image']
-        if file.filename == '':
-            return jsonify({"error": "Wrong file name"})
-        if file and file.filename.lower().endswith('.dcm'):
-            filename = secure_filename(file.filename)
-            print(file)
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            return jsonify({"filename": filename})
+        image = process_file(request.files, 'image', '.dcm')
+        dictionary = process_file(request.files, 'dictionary', '.json')
+        return jsonify({"image": image, "dictionary": dictionary})
     return jsonify({"error": "Unknown error"})
-    
+
 
 @app.route('/uploads/<filename>')
 def uploaded_image(filename):
@@ -48,30 +60,48 @@ def uploaded_image(filename):
     return send_image(image)
 
 
-@app.route('/show_image/<filename>')
-def show_image(filename):
-    return render_template("show_image.html", uploaded_image=filename)
+@app.route('/show_image')
+def show_image():
+    image = request.args.get("image", type=str)
+    dictionary = request.args.get("dictionary", type=str)
+    return render_template("show_image.html", uploaded_image=image, uploaded_dictionary=dictionary)
 
 
-@app.route('/show_result/<filename>')
-def show_result(filename):
-    return render_template("show_result.html", uploaded_image=filename)
+# @app.route('/show_result/<filename>')
+# def show_result(filename):
+#     return render_template("show_result.html", uploaded_image=filename)
 
-@app.route("/process_image", methods=['GET', 'POST'])
-def process_image():
-    filename = request.json['filename']
+
+@app.route("/process_files", methods=['GET', 'POST'])
+def process_files():
+    image = request.json["image"]
+    dictionary = request.json["dictionary"]
     try:
-        image = do.process_image(filename)
-        # image = do.get_image_from_dicom(filename)
+        original_image = do.get_image_from_dicom(image)
+        model_objects = do.load_objects(dictionary)
+        graphs_processed = do.process_image(original_image)
+        graphs_of_objects = do.GraphOfFoundObjects.find_objects_in_graphs(graphs_processed, model_objects)
+
+        processed_image = do.print_objects_on_graphs(
+            graphs_of_objects,
+            original_image,
+            fill=False,
+            method='color_per_object'
+        )
         img_io = BytesIO()
-        Image.fromarray(image).save(img_io, 'PNG')
+        Image.fromarray(processed_image).save(img_io, 'PNG')
         img_io.seek(0)
-        return b64encode(img_io.read())
+
+        networkx_json_graph_list = do.GraphOfFoundObjects.to_networkx_json_graph_list(graphs_of_objects)
+
+        # processed_image = do.get_graph_image(graphs_processed, original_image)
+        return jsonify({
+            "processed_image": b64encode(img_io.read()).decode('utf-8'),
+            "networkx_json_graph_list": do.GraphOfFoundObjects.serialize(networkx_json_graph_list)
+        })
     except IOError:
         return jsonify({"error": "Unknown error"})
 
 
 if __name__ == "__main__":
     app.run(debug=True)
-
-

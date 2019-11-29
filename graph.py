@@ -6,6 +6,7 @@ class Node:
     def __init__(self):
         self.connected = []
         self.visited = False
+        self.was_added = False
 
     def set_coord(self, i, j):
         self.coord = (i, j)
@@ -230,6 +231,10 @@ def graph_from_path(graph, path, dest):
         new_node.connected.append(prev)
         prev = new_node
         new_node.coord = tmp.coord
+        try:
+            new_node.was_added = tmp.was_added
+        except:
+            new_node.was_added = False
         if path[tmp] == tmp:
             break
     return Graph(nodes)
@@ -254,6 +259,7 @@ def connect(node1, node2, graph):
         max_x, max_y = end.coord
         for x in np.arange(min_x + 1, max_x):
             new_node = Node()
+            new_node.was_added = True
             y = ((max_y - min_y) * (x - min_x)) / (max_x - min_x) + min_y
             new_node.coord = (int(x), int(y)) 
             new_node.connected.append(prev)
@@ -269,6 +275,7 @@ def connect(node1, node2, graph):
         max_x, max_y = end.coord
         for y in np.arange(min_y + 1, max_y):
             new_node = Node()
+            new_node.was_added = True
             x = ((max_x - min_x) * (y - min_y)) / (max_y - min_y) + min_x
             new_node.coord = (int(x), int(y))
             new_node.connected.append(prev)
@@ -277,7 +284,48 @@ def connect(node1, node2, graph):
             prev = new_node
         end.connected.append(prev)
         prev.connected.append(end)
-        
+
+
+def get_start_node(graph):
+    ends = list(filter(lambda node: len(node.connected) == 1, graph.nodes))
+    ends_width = list(map(lambda node: node.width, ends))
+    return ends[np.argmax(ends_width)]
+
+
+def add_tree_attributes(graph):
+    start_node = get_start_node(graph)
+    graph.start_node = start_node
+    start_node.prev = None
+    stack = [start_node]
+    while stack:
+        curr_node = stack.pop()
+        curr_node.next = []
+        for next_node in curr_node.connected:
+            if next_node != curr_node.prev:
+                curr_node.next.append(next_node)
+                next_node.prev = curr_node
+                stack.append(next_node)
+                
+
+def fill_width_for_conected(graph):
+    start_node = graph.start_node
+    dist_before = start_node.width
+    stack = [(start_node, [])]
+    while stack:
+        curr_node, nodes_without_width = stack.pop()
+        if len(curr_node.next) > 1 and curr_node.was_added:
+            raise Exception("Impossible situation") 
+        elif not curr_node.was_added:
+            if nodes_without_width:
+                start_width = nodes_without_width[0].prev.width
+                end_width = curr_node.width
+                for i, node in enumerate(nodes_without_width):
+                    node.width = end_width + (start_width - end_width) * (i + 1) / (len(nodes_without_width) + 1)
+            for next_node in curr_node.next:
+                stack.append((next_node, []))
+        else:
+            for next_node in curr_node.next:
+                stack.append((next_node, nodes_without_width + [curr_node]))
 
 
 def dist(coord1, coord2):
@@ -288,7 +336,7 @@ def connect_end_to_graph(end, graph, new_graph):
     distances, path, _ = Dijkstra(graph, end)
     distances = sorted(list(distances.items()), key=lambda value: value[1])
     shared_node = None
-    path_coords = map(lambda node: node.coord, new_graph.nodes)
+    path_coords = list(map(lambda node: node.coord, new_graph.nodes))
     for node, end_len in distances:
         if node.coord in path_coords:
             shared_node = node
@@ -303,6 +351,10 @@ def connect_end_to_graph(end, graph, new_graph):
         prev.connected.append(new_node)
         new_node.connected.append(prev)
         prev = new_node
+        try:
+            new_node.was_added = tmp.was_added
+        except:
+            new_node.was_added = False
         new_node.coord = tmp.coord
         if path[tmp] == tmp:
             break
@@ -325,11 +377,9 @@ def get_largest_path_as_graph(graph, remove=True):
     max_node2 = get_max_path_node(distances)
     new_graph = graph_from_path(graph, path, max_node2)
     for end in ends:
-        #connect_end_to_graph(end, graph, new_graph)
-        pass
+        connect_end_to_graph(end, graph, new_graph)
     if remove:
-        #remove_small_branches(new_graph, new_graph.get_node_by_coord(max_node1.coord))
-        pass
+        remove_small_branches(new_graph, new_graph.get_node_by_coord(max_node1.coord))
     return new_graph
     
 
@@ -399,6 +449,75 @@ def add_width_to_nodes(graph, dist):
         node.width = dist[i,j]
 
 
+class Branch:
+    def __init__(self, nodes=[]):
+        self.nodes = nodes
+        self.next = []
+        self.joint = None
+        self.prev_joint = None
+
+    def add_node(self, node):
+        self.nodes.append(node)
+
+    def add_next_branch(self, next_branch):
+        self.next.append(next_branch)
 
 
-        
+def divide_graph_by_branches(graph):
+    start_branch, joints = Branch([]), []
+    graph.branches = [start_branch]
+    stack = [(graph.start_node, start_branch)]
+    while stack:
+        curr_node, curr_branch = stack.pop()
+        if len(curr_node.next) > 1:
+            joints.append(curr_node)
+            curr_branch.joint = curr_node
+            for next_node in curr_node.next:
+                new_branch = Branch([])
+                graph.branches.append(new_branch)
+                new_branch.prev_joint = curr_node
+                curr_branch.add_next_branch(new_branch)
+                stack.append((next_node, new_branch))
+        elif curr_node.next:
+            curr_branch.add_node(curr_node)
+            stack.append((curr_node.next[0], curr_branch))
+        else:
+            curr_branch.add_node(curr_node)
+    return start_branch, joints
+
+def find_peaks(dist, width = 10):
+    peaks = []
+    new_dist = np.hstack([np.zeros(width), dist, np.zeros(width)])
+    for start in np.arange(width, len(new_dist) - width):
+        if np.all(new_dist[start] >= new_dist[start-width:start+width+1]):
+            peaks.append(start - width)
+        if np.all(new_dist[start] <= new_dist[start-width:start+width+1]):
+            peaks.append(start - width)
+    if peaks[0] != 0:
+        peaks = np.hstack([[0], peaks])
+    if peaks[-1] != dist.shape[0] - 1:
+        peaks = np.hstack([peaks, [dist.shape[0] - 1]])
+    return peaks
+
+def get_dist_to_line(points):
+    x1, y1 = points[0]
+    x2, y2 = points[-1]
+    xs, ys = points[:, 0], points[:, 1]
+    return ((x2 - x1) * (y1 - ys) - (x1 - xs) * (y2 - y1)) / np.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
+
+def get_angles(peaks, points):
+    p1, p2, p3 = points[peaks][:-2], points[peaks][1:-1], points[peaks][2:]
+    v1, v2 = p1 - p2, p1 - p3
+    norm_v1, norm_v2 = np.linalg.norm(v1,axis=1), np.linalg.norm(v2,axis=1)
+    idx = np.where((norm_v1 > 0) & (norm_v2 > 0))
+    return np.degrees(np.arccos(np.sum(v1[idx] * v2[idx], axis=1) / (norm_v1[idx] * norm_v2[idx])))
+
+def get_maxium_angle(nodes):
+    if len(nodes) < 2:
+        return 0.
+    points = np.array([node.coord for node in nodes])
+    dist = get_dist_to_line(points)
+    peaks = find_peaks(dist, int(len(dist) / 15))
+    return np.max(get_angles(peaks, points))
+
+    

@@ -1,57 +1,101 @@
-<!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <title>Loading</title>
-    </head>
-    <body>
-        <label for="file">Select DICOM image</label>
-        <form id="upload_form" enctype="multipart/form-data">
-            <input type="file"
-                id="file" name="file"
-                accept=".dcm">
-        </form>
-        <button type="submit" id="submit">Submit</button>
-    </body>
+{% extends 'base.html' %}
+
+{% block app %}
+    <div class="app-container">
+        <div class="box" style="margin-bottom: 2.5rem;">
+            <form id="upload_form" enctype="multipart/form-data">
+                <div class="upload">
+                    <div id="image-upload" class="file has-name is-boxed">
+                        <label class="file-label">
+                            <input id="image" name="image" type="file" accept="application/dicom" class="file-input">
+                            <span class="file-cta">
+                            <span class="file-icon">
+                                <i class="fas fa-upload"></i>
+                            </span>
+                            <span class="file-label">
+                                Select DICOM image…
+                            </span>
+                        </span>
+                            <span class="file-name"></span>
+                        </label>
+                    </div>
+                    <div id="dictionary-upload" class="file has-name is-boxed">
+                        <label class="file-label">
+                            <input id="dictionary" name="dictionary" type="file" accept="application/json"
+                                   class="file-input">
+                            <span class="file-cta">
+                        <span class="file-icon">
+                            <i class="fas fa-upload"></i>
+                        </span>
+                        <span class="file-label">
+                            Select object dictionary…
+                        </span>
+                    </span>
+                            <span class="file-name"></span>
+                        </label>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="control">
+            <button class="button is-link is-rounded" type="submit" id="submit">Submit</button>
+        </div>
+    </div>
     <script>
-        let postRequstUrl = "/upload_image"
-        let redirectUrlBase = "/show_image/"
+        const fileInputs = document.querySelectorAll("input[type=file]");
+        fileInputs.forEach(fileInput => fileInput.addEventListener("change", showFilename));
+        window.addEventListener("load", () => fileInputs.forEach(fileInput => showFilename(fileInput)));
 
-        document.getElementById("submit").addEventListener("click", send_image);
-        function send_image(){
-            let files = document.getElementById("file").files; 
-            if( files.length == 0 ){
-                raiseAlert("File isn't selected");
-            }else{
-                var xhr = new XMLHttpRequest();
-                xhr.open("POST", postRequstUrl, true);
-                // xhr.setRequestHeader('Content-Type', "multipart/form-data");
-                var formData = new FormData(document.getElementById("upload_form"));
-                formData.append("image", files[0]);
-                xhr.send(formData);
+        function showFilename(eventOrElement) {
+            const fileInput = eventOrElement.currentTarget || eventOrElement;
+            if (fileInput.files.length > 0) {
+                const fileName = fileInput.parentElement.querySelector(".file-name");
+                fileName.textContent = fileInput.files[0].name;
+            }
+        }
 
-                xhr.onreadystatechange = function () {
-                    if (this.readyState != 4) return;
-                    if (this.status == 200) {
-                        var data = JSON.parse(this.responseText);
-                        if ("error" in data){
-                            raiseAlert(data.error);
-                        }else{
-                            window.location.href = redirectUrlBase + data.filename;
-                        }
+        function getFile(inputElement) {
+            const files = inputElement.files;
+            if (files.length < 1) {
+                window.alert("File isn't selected");
+                return;
+            } else if (files.length > 1) {
+                window.alert("Too many files selected");
+                return;
+            }
+            return files[0];
+        }
+
+        document.getElementById("submit").addEventListener("click", function () {
+            const uploadForm = document.getElementById("upload_form");
+            const image = document.getElementById("image");
+            const dictionary = document.getElementById("dictionary");
+
+            const formData = new FormData(uploadForm);
+            const imageFile = getFile(image);
+            const dictionaryFile = getFile(dictionary);
+            if (!(imageFile && dictionaryFile)) return;
+
+            formData.append(image.name, imageFile);
+            formData.append(dictionary.name, dictionaryFile);
+
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", "/upload_files", true);
+            xhr.onreadystatechange = function () {
+                if (this.readyState === XMLHttpRequest.DONE && this.status === 200) {
+                    const data = JSON.parse(this.responseText);
+                    const image = data.image;
+                    const dictionary = data.dictionary;
+                    if ("error" in image) {
+                        window.alert(image.error);
+                    } else if ("error" in dictionary) {
+                        window.alert(dictionary.error);
+                    } else {
+                        window.location.href = `/show_image?image=${image.filename}&dictionary=${dictionary.filename}`;
                     }
-                };
-            }
-        }
-        function raiseAlert(text){
-            let alert = document.getElementById("alert")
-            if (alert == null){
-                let alert = document.createTextNode(text);
-                alert.id = "alert"
-                document.body.appendChild(alert);
-            }else{
-                alert.innerHTML = text;
-            }
-        }
+                }
+            };
+            xhr.send(formData);
+        });
     </script>
-</html>
+{% endblock %}
