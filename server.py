@@ -9,6 +9,8 @@ from io import BytesIO
 import detect_object as do
 from base64 import b64encode
 
+from print_objects import print_objects_on_graphs
+
 app = Flask(__name__)
 
 UPLOAD_FOLDER = os.path.abspath(os.path.dirname(__file__)) + '/images'
@@ -82,7 +84,7 @@ def process_files():
         graphs_processed = do.process_image(original_image)
         graphs_of_objects = do.GraphOfFoundObjects.find_objects_in_graphs(graphs_processed, model_objects)
 
-        processed_image = do.print_objects_on_graphs(
+        processed_image = print_objects_on_graphs(
             graphs_of_objects,
             original_image,
             fill=False,
