@@ -1,7 +1,36 @@
 import numpy as np
 import cv2
-from detect_object import get_colors
+from graph import get_start_node
 
+
+def get_colors(n=3):
+    colors = []
+    values = np.linspace(0, 255, n)[::-1]
+    for r in values:
+        for g in values:
+            for b in values:
+                if r == g and g == b:
+                    continue
+                colors.append(np.array([r, g, b]))
+    return colors
+
+
+def get_graph_image(graphs, gray=None, width=False):
+    if gray is not None:
+        img = cv2.cvtColor(gray,cv2.COLOR_GRAY2RGB)
+    else:
+        img = np.full((512, 512, 3), 255)
+    colors = get_colors()
+    for i, (color, graph) in enumerate(zip(colors, graphs)):
+        for node in graph.nodes:
+            y, x = node.coord
+            if width:
+                cv2.circle(img, (x, y), int(node.width), color, -1)
+            else:
+                img[y, x] = color
+        start = get_start_node(graph)
+        img[start.coord[0], start.coord[1]] = np.array([0, 0, 255])
+    return img
 
 
 def get_ortho_points(point, points, d):
