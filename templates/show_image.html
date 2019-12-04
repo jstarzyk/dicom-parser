@@ -6,14 +6,12 @@
 
 {% block app %}
     <div class="app-container">
-        <div style="width: 100vw; overflow: auto;">
+        <div style="width: 100%; overflow: auto;">
             <div style="position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center;">
                 <img id="original" class="box" style="position: absolute; z-index: 1; margin-bottom: unset;"
                      src="/uploads/{{ uploaded_image }}"
                      alt="Original image">
-                <img id="processed" class="box"
-                     style="position: absolute; z-index: 2; display: none; margin-bottom: unset;" alt="Processed image">
-                <canvas id="canvas" style="position: relative; z-index: 3;"></canvas>
+                <canvas id="canvas" style="position: relative; z-index: 4;"></canvas>
             </div>
         </div>
         <div class="control" style="margin-bottom: 2rem;">
@@ -25,10 +23,30 @@
                     Measuring tool
                 </button>
             </div>
-            <div class="control">
-                <button class="button is-light is-link" type="button" id="toggle">
-                    Show results
-                </button>
+            <div id="show" class="dropdown">
+                <div class="dropdown-trigger">
+                    <button class="button is-light is-link" aria-haspopup="true" aria-controls="dropdown-menu">
+                    <span>
+                        Show…
+                    </span>
+                        <span class="icon is-small">
+                    <i class="fas fa-angle-down" aria-hidden="true"></i>
+                </span>
+                    </button>
+                </div>
+                <div class="dropdown-menu" role="menu">
+                    <div class="dropdown-content">
+                        <a class="dropdown-item" id="showOriginalImage">
+                            Original image
+                        </a>
+                        <a class="dropdown-item disabled" id="showProcessedImageColorPerObject">
+                            Processed image (color per object)
+                        </a>
+                        <a class="dropdown-item disabled" id="showProcessedImageColorPerType">
+                            Processed image (color per type)
+                        </a>
+                    </div>
+                </div>
             </div>
             <div id="download" class="dropdown">
                 <div class="dropdown-trigger">
@@ -41,13 +59,16 @@
                 </span>
                     </button>
                 </div>
-                <div class="dropdown-menu" id="dropdown-menu" role="menu">
+                <div class="dropdown-menu" role="menu">
                     <div class="dropdown-content">
                         <a class="dropdown-item" id="downloadOriginalImage">
                             Original image
                         </a>
-                        <a class="dropdown-item disabled" id="downloadProcessedImage">
-                            Processed image
+                        <a class="dropdown-item disabled" id="downloadProcessedImageColorPerObject">
+                            Processed image (color per object)
+                        </a>
+                        <a class="dropdown-item disabled" id="downloadProcessedImageColorPerType">
+                            Processed image (color per type)
                         </a>
                         <a class="dropdown-item disabled" id="downloadFoundObjects">
                             Found objects
@@ -59,13 +80,17 @@
     </div>
     <script>
         const processButton = document.getElementById("process");
-        const toggleButton = document.getElementById("toggle");
         const measureButton = document.getElementById("measure");
         const originalImage = document.getElementById("original");
-        const processedImage = document.getElementById("processed");
+        const showDiv = document.getElementById("show");
+        const showOriginalImage = document.getElementById("showOriginalImage");
+        const showProcessedImageColorPerObject = document.getElementById("showProcessedImageColorPerObject");
+        const showProcessedImageColorPerType = document.getElementById("showProcessedImageColorPerType");
+
         const downloadDiv = document.getElementById("download");
         const downloadOriginalImage = document.getElementById("downloadOriginalImage");
-        const downloadProcessedImage = document.getElementById("downloadProcessedImage");
+        const downloadProcessedImageColorPerObject = document.getElementById("downloadProcessedImageColorPerObject");
+        const downloadProcessedImageColorPerType = document.getElementById("downloadProcessedImageColorPerType");
         const downloadFoundObjects = document.getElementById("downloadFoundObjects");
 
         const url = new URL(window.location.href);
@@ -75,39 +100,35 @@
         canvas = document.getElementById("canvas");
         ctx = canvas.getContext("2d");
 
-        function showElements(...elements) {
-            for (let e of elements) {
-                e.style.removeProperty("display");
-            }
-        }
-
-        function hideElements(...elements) {
-            for (let e of elements) {
-                e.style.setProperty("display", "none");
-            }
-        }
-
-        let showingProcessedImage = false;
-
-        downloadDiv.addEventListener("click", function (event) {
-            event.currentTarget.classList.toggle("is-active");
+        const dropdownElements = [showDiv, downloadDiv];
+        document.addEventListener("click", event => {
+            dropdownElements.filter(element => !element.contains(event.target))
+                .forEach(element => element.classList.remove("is-active"));
+            dropdownElements.filter(element => element.contains(event.target))
+                .forEach(element => element.classList.toggle("is-active"));
         });
 
-        originalImage.addEventListener("load", function () {
-            downloadOriginalImage.href = originalImage.src;
+        let dataOriginal;
+
+        function initImage() {
+            dataOriginal = originalImage.src;
+
+            downloadOriginalImage.href = dataOriginal;
             downloadOriginalImage.download = `${imageFilename}_original.png`;
 
             setupCanvas(originalImage);
-            showElements(measureButton);
-            toggleButton.disabled = true;
             enableResizing();
 
+            measureButton.disabled = false;
             measureButton.addEventListener("click", function () {
                 resetPolyline();
                 startPolyline();
             });
-        });
 
+            originalImage.removeEventListener("load", initImage);
+        }
+
+        originalImage.addEventListener("load", initImage);
         originalImage.src = originalImage.src;
 
         processButton.addEventListener("click", function () {
@@ -123,40 +144,30 @@
                 if (this.readyState === XMLHttpRequest.DONE && this.status === 200) {
                     const data = JSON.parse(this.responseText);
 
-                    processedImage.src = "data:image/png;charset=utf-8;base64, " + data["processed_image"];
-                    const foundObjects = "data:text/json;charset=utf-8, " + encodeURI(data["networkx_json_graph_list"]);
+                    const dataColorPerObject = "data:image/png;charset=utf-8;base64, " + data["color_per_object"];
+                    const dataColorPerType = "data:image/png;charset=utf-8;base64, " + data["color_per_type"];
+                    const dataFoundObjects = "data:text/json;charset=utf-8, " + encodeURI(data["networkx_json_graph_list"]);
 
-                    downloadProcessedImage.href = processedImage.src;
-                    downloadProcessedImage.download = `${imageFilename}_processed.png`;
-                    downloadFoundObjects.href = foundObjects;
+                    downloadProcessedImageColorPerObject.href = dataColorPerObject;
+                    downloadProcessedImageColorPerObject.download = `${imageFilename}_color_per_object.png`;
+                    downloadProcessedImageColorPerType.href = dataColorPerType;
+                    downloadProcessedImageColorPerType.download = `${imageFilename}_color_per_type.png`;
+                    downloadFoundObjects.href = dataFoundObjects;
                     downloadFoundObjects.download = `${imageFilename}_networkx_json_graph_list.json`;
 
-                    downloadProcessedImage.classList.remove("disabled");
+                    downloadProcessedImageColorPerObject.classList.remove("disabled");
+                    downloadProcessedImageColorPerType.classList.remove("disabled");
                     downloadFoundObjects.classList.remove("disabled");
 
                     processButton.classList.remove("is-loading");
 
-                    toggleButton.disabled = false;
-                    toggleButton.classList.add("is-active");
+                    originalImage.src = dataColorPerObject;
 
-                    hideElements(originalImage);
-                    showElements(processedImage);
-
-                    showingProcessedImage = true;
-
-                    toggleButton.onclick = function (event) {
-                        if (showingProcessedImage) {
-                            hideElements(processedImage);
-                            showElements(originalImage);
-                            setupCanvas(originalImage);
-                        } else {
-                            hideElements(originalImage);
-                            showElements(processedImage);
-                            setupCanvas(processedImage);
-                        }
-                        event.currentTarget.classList.toggle("is-active");
-                        showingProcessedImage = !showingProcessedImage;
-                    };
+                    showProcessedImageColorPerObject.classList.remove("disabled");
+                    showProcessedImageColorPerType.classList.remove("disabled");
+                    showOriginalImage.onclick = () => originalImage.src = dataOriginal;
+                    showProcessedImageColorPerObject.onclick = () => originalImage.src = dataColorPerObject;
+                    showProcessedImageColorPerType.onclick = () => originalImage.src = dataColorPerType;
                 }
             };
 

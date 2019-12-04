@@ -17,6 +17,13 @@ UPLOAD_FOLDER = os.path.abspath(os.path.dirname(__file__)) + '/images'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
+def serialize_image(image):
+    img_io = BytesIO()
+    Image.fromarray(image).save(img_io, 'PNG')
+    img_io.seek(0)
+    return b64encode(img_io.read()).decode('utf-8')
+
+
 def send_image(image):
     img_io = BytesIO()
     image.save(img_io, 'PNG')
@@ -84,21 +91,24 @@ def process_files():
         graphs_processed = do.process_image(original_image)
         graphs_of_objects = do.GraphOfFoundObjects.find_objects_in_graphs(graphs_processed, model_objects)
 
-        processed_image = print_objects_on_graphs(
+        color_per_object = print_objects_on_graphs(
             graphs_of_objects,
             original_image,
             fill=False,
             method='color_per_object'
         )
-        img_io = BytesIO()
-        Image.fromarray(processed_image).save(img_io, 'PNG')
-        img_io.seek(0)
+        color_per_type = print_objects_on_graphs(
+            graphs_of_objects,
+            original_image,
+            fill=False,
+            method='color_per_type'
+        )
 
         networkx_json_graph_list = do.GraphOfFoundObjects.to_networkx_json_graph_list(graphs_of_objects)
 
-        # processed_image = do.get_graph_image(graphs_processed, original_image)
         return jsonify({
-            "processed_image": b64encode(img_io.read()).decode('utf-8'),
+            "color_per_object": serialize_image(color_per_object),
+            "color_per_type": serialize_image(color_per_type),
             "networkx_json_graph_list": do.GraphOfFoundObjects.serialize(networkx_json_graph_list)
         })
     except IOError:
