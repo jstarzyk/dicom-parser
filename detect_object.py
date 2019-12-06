@@ -7,6 +7,8 @@ import pydicom
 
 from dictionary import *
 from image_process import get_bin_image
+from print_objects import print_objects_on_graphs
+from report import ReportGenerator
 
 
 def init_parser():
@@ -22,13 +24,28 @@ def init_parser():
     return parser
 
 
-def get_image_from_dicom(dicom_file):
-    ds = pydicom.dcmread(dicom_file)
-    image = None
-    if len(ds.pixel_array.shape) == 2:
-        image = ds.pixel_array
+def get_dicom_dataset(dicom_file):
+    return pydicom.dcmread(dicom_file)
+
+
+def get_mm_per_px_ratio(dataset):
+    try:
+        pixel_spacing = dataset.PixelSpacing
+        ps_x = float(pixel_spacing[0])
+        ps_y = float(pixel_spacing[1])
+        if ps_x == ps_y:
+            return ps_x
+        else:
+            return None
+    except AttributeError:
+        return None
+
+
+def get_image(dataset):
+    if len(dataset.pixel_array.shape) == 2:
+        image = dataset.pixel_array
     else:
-        image = ds.pixel_array[0]
+        image = dataset.pixel_array[0]
     return np.uint8(image)
 
 
@@ -52,14 +69,26 @@ def process_image(image):
 if __name__ == '__main__':
     arg_parser = init_parser()
     args = arg_parser.parse_args()
-    original_image = get_image_from_dicom(args.source)
+    dataset = get_dicom_dataset(args.source)
+    mm_per_px = get_mm_per_px_ratio(dataset)
+    original_image = get_image(dataset)
     model_objects = load_objects(args.dict)
     graphs_processed = process_image(original_image)
 
     with open(args.dest, 'w') as dest:
         graphs_of_objects = GraphOfFoundObjects.find_objects_in_graphs(graphs_processed, model_objects)
-        networkx_json_graph_list = GraphOfFoundObjects.to_networkx_json_graph_list(graphs_of_objects)
-        dest.write(GraphOfFoundObjects.serialize(networkx_json_graph_list))
+        color_per_type = print_objects_on_graphs(
+            graphs_of_objects,
+            original_image,
+            fill=False,
+            method='color_per_type'
+        )
+        # GraphOfFoundObjects.set_mm_per_px(graphs_of_objects, mm_per_px)
+        rg = ReportGenerator(model_objects, GraphOfFoundObjects.parse_networkx_graphs(graphs_of_objects), color_per_type, mm_per_px)
+        rg.to_pdf("tmpf.pdf")
+
+        # networkx_json_graph_list = GraphOfFoundObjects.to_networkx_json_graph_list(graphs_of_objects)
+        # dest.write(GraphOfFoundObjects.serialize(networkx_json_graph_list))
         # print(graphs_of_objects)
 
     # objects_image = print_objects_on_graphs(graphs_of_objects, original_image, fill=False, method='color_per_object')

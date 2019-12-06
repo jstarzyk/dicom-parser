@@ -165,8 +165,26 @@ class GraphOfFoundObjects:
         return graphs_with_objects
 
     @staticmethod
+    def repr_found_object(found_object, branch_nodes):
+        desc = found_object.description
+        nodes = branch_nodes[desc["start_index"]:desc["end_index"]]
+        return {
+            "type": desc["name"],
+            "length": get_length_in_px(nodes),
+            "min_width": desc["min_width"],
+            "max_width": desc["max_width"],
+            "start_coords": desc["start_coords"],
+            "end_coords": desc["end_coords"],
+            "center_coords": desc["center_coords"],
+            "max_angle": desc["max_angle"],
+        }
+
+    @staticmethod
     def parse_networkx_node(branch):
-        return {"found_objects": [o.description for o in branch.found_objects], "max_angle": branch.max_angle}
+        return {
+            "found_objects": [GraphOfFoundObjects.repr_found_object(o, branch.nodes) for o in branch.found_objects],
+            "max_angle": branch.max_angle
+        }
 
     @staticmethod
     def parse_networkx_graph(graph):
@@ -196,6 +214,10 @@ class GraphOfFoundObjects:
     @staticmethod
     def serialize(graphs):
         return json.dumps(graphs, default=lambda x: x.item())
+
+    @staticmethod
+    def parse_networkx_graphs(graphs):
+        return [GraphOfFoundObjects.parse_networkx_graph(graph) for graph in graphs]
 
     @staticmethod
     def to_networkx_json_graph_list(graphs):

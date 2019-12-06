@@ -12,7 +12,7 @@ class Report(fpdf.FPDF, fpdf.HTMLMixin):
 
 
 class ReportGenerator:
-    def __init__(self, model_objects, networkx_graphs, image_with_objects=None):
+    def __init__(self, model_objects, networkx_graphs, image_with_objects=None, mm_per_px=None):
         if image_with_objects is not None:
             self.image_filename = "img_{}.png".format(datetime.datetime.utcnow().timestamp())
             self.image = Image.fromarray(image_with_objects)
@@ -20,51 +20,62 @@ class ReportGenerator:
         self.model_objects = model_objects
         self.networkx_graphs = networkx_graphs
         self.found_objects = self._get_found_objects()
+        self.mm_per_px = mm_per_px
 
     @staticmethod
     def _flatten_list(list_of_lists):
         return [item for sublist in list_of_lists for item in sublist]
 
     @staticmethod
-    def _repr_found_object(number, found_object):
+    def _repr_found_object(number, found_object, length_ratio):
         return """
-        <tr>
+        <tr bgcolor="{}">
         <td>{}</td>
         <td>{}</td>
-        <td>{}</td>
-        <td>{}</td>
-        <td>{}</td>
+        <td align="right">{}</td>
+        <td align="right">{}</td>
+        <td align="right">{}</td>
+        <td align="right">{}</td>
         </tr>
         """.format(
+            "#FFFFFF" if number % 2 == 0 else "#F0FFF0",
             number,
-            found_object["name"],
-            found_object["min_width"],
-            found_object["max_width"],
-            found_object["length"]
+            found_object["type"],
+            round(found_object["length"] * length_ratio, 1),
+            round(found_object["min_width"] * length_ratio, 2),
+            round(found_object["max_width"] * length_ratio, 2),
+            round(found_object["max_angle"], 1),
         )
-        # TODO Fix length and units
 
-    def _repr_found_objects(self):
+    def _repr_found_objects(self, length_unit):
+        if length_unit == "mm":
+            length_ratio = self.mm_per_px
+        elif length_unit == "px":
+            length_ratio = 1
+        else:
+            length_ratio = 0
         return """
         <table border="1" align="center" width="100%">
         <thead>
             <tr>
-                <th width="4%"> </th>
-                <th width="24%">Type</th>
-                <th width="24%">Min width</th>
-                <th width="24%">Max width</th>
-                <th width="24%">Length</th>
+                <th width="5%"> </th>
+                <th width="15%">Type</th>
+                <th width="20%">Length [{}]</th>
+                <th width="20%">Min width [{}]</th>
+                <th width="20%">Max width [{}]</th>
+                <th width="20%">Max angle [°]</th>
             </tr>
         </thead>
         <tbody>
             {}
         </tbody>
         </table>
-        """.format("\n".join(
-            self._repr_found_object(number, found_object) for number, found_object in self.found_objects.items()))
+        """.format(length_unit, length_unit, length_unit, "\n".join(
+            self._repr_found_object(number, found_object, length_ratio) for number, found_object in
+            self.found_objects.items()))
 
     def _get_found_object_types(self):
-        return set(found_object["name"] for found_object in self.found_objects.values())
+        return set(found_object["type"] for found_object in self.found_objects.values())
 
     def _get_found_objects(self):
         return dict(enumerate(self._flatten_list(
@@ -73,8 +84,8 @@ class ReportGenerator:
 
     def _count_found_objects(self, object_type=None):
         if object_type:
-            names = [found_object["name"] for found_object in self.found_objects.values()]
-            return names.count(object_type)
+            types = [found_object["type"] for found_object in self.found_objects.values()]
+            return types.count(object_type)
         else:
             return sum([g.number_of_nodes() for g in self.networkx_graphs])
 
@@ -128,10 +139,16 @@ class ReportGenerator:
         pdf.set_font_size(12)
         pdf.set_draw_color(0)
         # pdf.set_xy(x, y)
-        pdf.write_html(self._repr_found_objects())
+        pdf.cell(w=0, h=10, ln=1,
+                 txt="1 mm per px = {}".format(self.mm_per_px if self.mm_per_px is not None else "(Not available)"),
+                 align="L")
+        pdf.write_html(self._repr_found_objects("px"))
+
+        if self.mm_per_px is not None:
+            pdf.add_page()
+            pdf.write_html(self._repr_found_objects("mm"))
 
         return pdf
-        # TODO Set correct image size
 
     # def generate_pdf_report2(self, image):
     #     pdf = fpdf.FPDF()
