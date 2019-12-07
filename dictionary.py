@@ -88,12 +88,12 @@ def find_objects_on_branch(model_objects, branch):
     return objects
 
 
-def find_objects_on_graph(model_objects, graph):
+def find_objects_on_graph(model_objects, graph, ratio_pix_to_mm=1.):
     start_branch, joints = divide_graph_by_branches(graph)
     stack = [start_branch]
     while stack:
         branch = stack.pop()
-        branch_widths = list(map(lambda node: node.width, branch.nodes))
+        branch_widths = list(map(lambda node: node.width * ratio_pix_to_mm, branch.nodes))
         found_objects_desc = find_objects_on_branch(model_objects, branch_widths)
         found_objects = []
         for object_desc in found_objects_desc:
@@ -131,8 +131,8 @@ class FoundObject:
 
 
 class GraphOfFoundObjects:
-    def __init__(self, graph, model_objects, name="Graph"):
-        self.start_branch, self.joints = find_objects_on_graph(model_objects, graph)
+    def __init__(self, graph, model_objects, name="Graph", ratio_pix_to_mm=1.):
+        self.start_branch, self.joints = find_objects_on_graph(model_objects, graph, ratio_pix_to_mm)
         self.name = name
         self.length = len(graph.nodes)
 
@@ -151,14 +151,14 @@ class GraphOfFoundObjects:
         return text
 
     @staticmethod
-    def find_objects_in_graphs(graphs, model_objects):
-        return [GraphOfFoundObjects(graph, model_objects, "Graph #%d" % i) for i, graph in enumerate(graphs)]
+    def find_objects_in_graphs(graphs, model_objects, ratio_pix_to_mm=1.):
+        return [GraphOfFoundObjects(graph, model_objects, "Graph #%d" % i, ratio_pix_to_mm) for i, graph in enumerate(graphs)]
 
     @staticmethod
-    def create_and_write_graphs(graphs, model_objects, file=None):
+    def create_and_write_graphs(graphs, model_objects, file=None, ratio_pix_to_mm=1.):
         graphs_with_objects = []
         for i, graph in enumerate(graphs):
-            graph_with_objects = GraphOfFoundObjects(graph, model_objects, "Graph #%d" % i)
+            graph_with_objects = GraphOfFoundObjects(graph, model_objects, "Graph #%d" % i, ratio_pix_to_mm)
             graphs_with_objects.append(graph_with_objects)
             if not file is None:
                 file.write(graph_with_objects.__repr__())
