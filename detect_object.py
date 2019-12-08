@@ -20,7 +20,7 @@ def init_parser():
     parser.add_argument('--dest', dest='dest', action='store',
                         default='result.txt', help='path to output found objects description')
     parser.add_argument('--img_dest', dest='img_dest', action='store',
-                        default='result.png', help='path to output image with objects')  
+                        default='result.png', help='path to output image with objects')
     return parser
 
 
@@ -84,8 +84,10 @@ if __name__ == '__main__':
             method='color_per_type'
         )
         # GraphOfFoundObjects.set_mm_per_px(graphs_of_objects, mm_per_px)
-        rg = ReportGenerator(model_objects, GraphOfFoundObjects.parse_networkx_graphs(graphs_of_objects), color_per_type, mm_per_px)
-        rg.to_pdf("tmpf.pdf")
+        rg = ReportGenerator(GraphOfFoundObjects.parse_networkx_graphs(graphs_of_objects), color_per_type,
+                             original_image, args.source, args.dict, mm_per_px)
+        rg.to_pdf("tmpf2.pdf")
+        rg.to_xlsx("tmpf2.xlsx")
 
         # networkx_json_graph_list = GraphOfFoundObjects.to_networkx_json_graph_list(graphs_of_objects)
         # dest.write(GraphOfFoundObjects.serialize(networkx_json_graph_list))
@@ -94,8 +96,6 @@ if __name__ == '__main__':
     # objects_image = print_objects_on_graphs(graphs_of_objects, original_image, fill=False, method='color_per_object')
     # objects_image = get_graph_image(graphs_processed, original_image, width=False)
     # cv2.imwrite(args.img_dest, objects_image)
-
-
 
     # cv2.imshow('Found Objects', graph_image)
     # cv2.imwrite('tmp.png', graph_image)
