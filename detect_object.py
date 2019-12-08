@@ -77,6 +77,13 @@ if __name__ == '__main__':
 
     with open(args.dest, 'w') as dest:
         graphs_of_objects = GraphOfFoundObjects.find_objects_in_graphs(graphs_processed, model_objects)
+
+        color_per_object = print_objects_on_graphs(
+            graphs_of_objects,
+            original_image,
+            fill=False,
+            method='color_per_object'
+        )
         color_per_type = print_objects_on_graphs(
             graphs_of_objects,
             original_image,
@@ -84,7 +91,7 @@ if __name__ == '__main__':
             method='color_per_type'
         )
         # GraphOfFoundObjects.set_mm_per_px(graphs_of_objects, mm_per_px)
-        rg = ReportGenerator(GraphOfFoundObjects.parse_networkx_graphs(graphs_of_objects), color_per_type,
+        rg = ReportGenerator(GraphOfFoundObjects.parse_networkx_graphs(graphs_of_objects), color_per_type, color_per_object,
                              original_image, args.source, args.dict, mm_per_px)
         rg.to_pdf("tmpf2.pdf")
         rg.to_xlsx("tmpf2.xlsx")

@@ -52,13 +52,14 @@ class ReportGenerator:
     class PDFReport(fpdf.FPDF, fpdf.HTMLMixin):
         pass
 
-    def __init__(self, networkx_graphs, image_with_objects, original_image, image_filename, dictionary_filename,
-                 mm_per_px=None):
+    def __init__(self, networkx_graphs, color_per_type, color_per_object, original_image, image_filename,
+                 dictionary_filename, mm_per_px=None):
         self.mm_per_px = mm_per_px
         self.networkx_graphs = networkx_graphs
         self.found_objects = self._get_found_objects()
-        self.image_with_objects = self._save_image(image_with_objects)
-        self.image_with_object_numbers = self._save_image(self._draw_object_numbers())
+        self.color_per_type = self._save_image(color_per_type)
+        self.color_per_object = self._save_image(color_per_object)
+        self.numbers_image = self._save_image(self._draw_object_numbers())
         self.original_image = self._save_image(original_image)
         self.image_filename = image_filename
         self.dictionary_filename = dictionary_filename
@@ -75,7 +76,7 @@ class ReportGenerator:
 
     def _draw_object_numbers(self):
         f = 4
-        resized_image = cv.resize(self.image_with_objects[1], None, fx=f, fy=f)
+        resized_image = cv.resize(self.color_per_object[1], None, fx=f, fy=f)
         text_drawer = TextDrawer(cv.FONT_HERSHEY_SCRIPT_SIMPLEX, 1.0, 1)
         text_drawer.draw_texts(
             resized_image,
@@ -100,7 +101,7 @@ class ReportGenerator:
 
         self._write_object_count(pdf)
 
-        height_px, width_px, _ = self.image_with_object_numbers[1].shape
+        height_px, width_px, _ = self.numbers_image[1].shape
         width_mm = pdf.fw - pdf.l_margin - pdf.r_margin
         height_mm = height_px * (width_mm / width_px)
 
@@ -111,8 +112,12 @@ class ReportGenerator:
         pdf.cell(w=0, h=6, ln=1, txt="Original Image", align="C")
 
         pdf.add_page()
-        pdf.image(self.image_with_object_numbers[0], w=width_mm, h=height_mm)
-        pdf.cell(w=0, h=6, ln=1, txt="Processed Image", align="C")
+        pdf.image(self.color_per_type[0], w=width_mm, h=height_mm)
+        pdf.cell(w=0, h=6, ln=1, txt="Objects by Type", align="C")
+
+        pdf.add_page()
+        pdf.image(self.numbers_image[0], w=width_mm, h=height_mm)
+        pdf.cell(w=0, h=6, ln=1, txt="Objects by Number", align="C")
 
         pdf.add_page()
         self._write_object_features(pdf, "px")
@@ -225,8 +230,11 @@ class ReportGenerator:
         original_image = xlsx.add_worksheet("Original Image")
         original_image.insert_image(start_row, start_col, self.original_image[0])
 
-        processed_image = xlsx.add_worksheet("Processed Image")
-        processed_image.insert_image(start_row, start_col, self.image_with_object_numbers[0])
+        color_per_type = xlsx.add_worksheet("Objects by Type")
+        color_per_type.insert_image(start_row, start_col, self.color_per_type[0])
+
+        numbers_image = xlsx.add_worksheet("Objects by Number")
+        numbers_image.insert_image(start_row, start_col, self.numbers_image[0])
 
         object_features_columns = ("Number", "Type", "Length [{}]", "Min width [{}]", "Max width [{}]", "Max angle [°]")
         object_features_name = "Object Features ({})"
