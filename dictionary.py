@@ -221,7 +221,7 @@ class GraphOfFoundObjects:
 
     @staticmethod
     def to_networkx_json_graph_list(graphs):
-        return [nx.readwrite.json_graph.node_link_data(GraphOfFoundObjects.parse_networkx_graph(graph)) for graph in graphs]
+        return [nx.readwrite.json_graph.node_link_data(graph) for graph in graphs]
 
 
 def load_objects(filename):

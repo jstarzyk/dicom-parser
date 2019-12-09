@@ -10,6 +10,7 @@ import detect_object as do
 from base64 import b64encode
 
 from print_objects import print_objects_on_graphs
+from report import ReportGenerator
 
 app = Flask(__name__)
 
@@ -65,7 +66,8 @@ def upload_files():
 @app.route('/uploads/<filename>')
 def uploaded_image(filename):
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    image = Image.fromarray(do.get_image_from_dicom(file_path))
+    dataset = do.get_dicom_dataset(file_path)
+    image = Image.fromarray(do.get_image(dataset))
     return send_image(image)
 
 
@@ -83,33 +85,35 @@ def show_image():
 
 @app.route("/process_files", methods=['GET', 'POST'])
 def process_files():
-    image = request.json["image"]
-    dictionary = request.json["dictionary"]
+    image_filename = request.json["image"]
+    dictionary_filename = request.json["dictionary"]
     try:
-        original_image = do.get_image_from_dicom(image)
-        model_objects = do.load_objects(dictionary)
+        dataset = do.get_dicom_dataset(image_filename)
+        original_image = do.get_image(dataset)
+        mm_per_px = do.get_mm_per_px_ratio(dataset)
+        model_objects = do.load_objects(dictionary_filename)
         graphs_processed = do.process_image(original_image)
+
         graphs_of_objects = do.GraphOfFoundObjects.find_objects_in_graphs(graphs_processed, model_objects)
 
-        color_per_object = print_objects_on_graphs(
-            graphs_of_objects,
-            original_image,
-            fill=False,
-            method='color_per_object'
-        )
-        color_per_type = print_objects_on_graphs(
-            graphs_of_objects,
-            original_image,
-            fill=False,
-            method='color_per_type'
-        )
+        color_per_object = print_objects_on_graphs(graphs_of_objects, original_image, fill=False,
+                                                   method='color_per_object')
+        color_per_type = print_objects_on_graphs(graphs_of_objects, original_image, fill=False,
+                                                 method='color_per_type')
 
-        networkx_json_graph_list = do.GraphOfFoundObjects.to_networkx_json_graph_list(graphs_of_objects)
+        networkx_graphs = do.GraphOfFoundObjects.parse_networkx_graphs(graphs_of_objects)
+        rg = ReportGenerator(networkx_graphs, color_per_type, color_per_object, original_image, image_filename,
+                             dictionary_filename, mm_per_px)
+        pdf_report = rg.to_pdf()
+        xlsx_report = rg.to_xlsx()
 
         return jsonify({
             "color_per_object": serialize_image(color_per_object),
             "color_per_type": serialize_image(color_per_type),
-            "networkx_json_graph_list": do.GraphOfFoundObjects.serialize(networkx_json_graph_list)
+            "networkx_json_graph_list": do.GraphOfFoundObjects.serialize(
+                do.GraphOfFoundObjects.to_networkx_json_graph_list(networkx_graphs)),
+            "pdf_report": b64encode(pdf_report).decode("utf-8"),
+            "xlsx_report": b64encode(xlsx_report).decode("utf-8"),
         })
     except IOError:
         return jsonify({"error": "Unknown error"})
