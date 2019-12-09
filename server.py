@@ -1,52 +1,48 @@
 #!/usr/bin/python
 
 import os
-# from flask import Flask, render_template, jsonify, request, redirect, url_for, send_from_directory, send_file
+
+from PIL import Image
 from flask import *
 from werkzeug.utils import secure_filename
-from PIL import Image
-from io import BytesIO
-import detect_object as do
-from base64 import b64encode
 
+import detect_object as do
 from print_objects import print_objects_on_graphs
 from report import ReportGenerator
 
 app = Flask(__name__)
 
-UPLOAD_FOLDER = os.path.abspath(os.path.dirname(__file__)) + '/images'
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+UPLOAD_FOLDER = os.path.abspath(os.path.dirname(__file__)) + "/uploads"
+FILES_FOLDER = os.path.abspath(os.path.dirname(__file__)) + "/files"
+
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+app.config["FILES_FOLDER"] = FILES_FOLDER
 
 
-def serialize_image(image):
-    img_io = BytesIO()
-    Image.fromarray(image).save(img_io, 'PNG')
-    img_io.seek(0)
-    return b64encode(img_io.read()).decode('utf-8')
-
-
-def send_image(image):
-    img_io = BytesIO()
-    image.save(img_io, 'PNG')
-    img_io.seek(0)
-    return send_file(img_io, mimetype='image/png')
-
-
-def save_file(file):
-    filename = secure_filename(file.filename)
-    file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-    return filename
-
-
-def process_file(files, name, extension):
+def process_uploaded_file(files, name, extension):
     if name not in files:
         return {"error": "No file was received"}
     file = request.files[name]
     if file.filename == '':
         return {"error": "Wrong filename"}
     if file and file.filename.lower().endswith(extension):
-        filename = save_file(file)
-        return {"filename": filename}
+        ff = filepath_filename(app.config["UPLOAD_FOLDER"], secure_filename(file.filename))
+        file.save(ff[0])
+        return {"filename": ff[1]}
+
+
+def get_pil_image(array):
+    return Image.fromarray(array)
+
+
+def get_dicom_image(filepath):
+    dataset = do.get_dicom_dataset(filepath)
+    return do.get_image(dataset)
+
+
+def filepath_filename(folder, filename):
+    filepath = os.path.join(folder, filename)
+    return filepath, filename
 
 
 @app.route("/")
@@ -54,66 +50,88 @@ def home():
     return render_template("upload.html")
 
 
-@app.route("/upload_files", methods=['GET', 'POST'])
+@app.route("/upload_files", methods=["GET", "POST"])
 def upload_files():
-    if request.method == 'POST':
-        image = process_file(request.files, 'image', '.dcm')
-        dictionary = process_file(request.files, 'dictionary', '.json')
+    if request.method == "POST":
+        image = process_uploaded_file(request.files, "image", ".dcm")
+        dictionary = process_uploaded_file(request.files, "dictionary", ".json")
+        try:
+            dicom_image_ff = filepath_filename(app.config["UPLOAD_FOLDER"], image["filename"])
+            png_image_ff = filepath_filename(app.config["FILES_FOLDER"], dicom_image_ff[1] + ".png")
+            get_pil_image(get_dicom_image(dicom_image_ff[0])).save(png_image_ff[0])
+            image["png_filename"] = png_image_ff[1]
+        except KeyError:
+            pass
         return jsonify({"image": image, "dictionary": dictionary})
     return jsonify({"error": "Unknown error"})
 
 
-@app.route('/uploads/<filename>')
-def uploaded_image(filename):
-    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    dataset = do.get_dicom_dataset(file_path)
-    image = Image.fromarray(do.get_image(dataset))
-    return send_image(image)
+@app.route("/uploads/<filename>")
+def get_uploaded_file(filename):
+    return send_file(filepath_filename(app.config["UPLOAD_FOLDER"], filename)[0])
 
 
-@app.route('/show_image')
+@app.route("/files/<filename>")
+def get_processed_file(filename):
+    return send_file(filepath_filename(app.config["FILES_FOLDER"], filename)[0])
+
+
+@app.route("/show_image")
 def show_image():
     image = request.args.get("image", type=str)
     dictionary = request.args.get("dictionary", type=str)
-    return render_template("show_image.html", uploaded_image=image, uploaded_dictionary=dictionary)
+    return render_template("show_image.html", image=image, dictionary=dictionary)
 
 
-# @app.route('/show_result/<filename>')
-# def show_result(filename):
-#     return render_template("show_result.html", uploaded_image=filename)
-
-
-@app.route("/process_files", methods=['GET', 'POST'])
+@app.route("/process_files", methods=["GET", "POST"])
 def process_files():
-    image_filename = request.json["image"]
-    dictionary_filename = request.json["dictionary"]
+    upload_folder = app.config["UPLOAD_FOLDER"]
+    files_folder = app.config["FILES_FOLDER"]
+
     try:
-        dataset = do.get_dicom_dataset(image_filename)
+        image_ff = filepath_filename(upload_folder, request.json["image"])
+        dictionary_ff = filepath_filename(upload_folder, request.json["dictionary"])
+
+        dataset = do.get_dicom_dataset(image_ff[0])
         original_image = do.get_image(dataset)
         mm_per_px = do.get_mm_per_px_ratio(dataset)
-        model_objects = do.load_objects(dictionary_filename)
+        model_objects = do.load_objects(dictionary_ff[0])
         graphs_processed = do.process_image(original_image)
-
         graphs_of_objects = do.GraphOfFoundObjects.find_objects_in_graphs(graphs_processed, model_objects)
 
-        color_per_object = print_objects_on_graphs(graphs_of_objects, original_image, fill=False,
-                                                   method='color_per_object')
         color_per_type = print_objects_on_graphs(graphs_of_objects, original_image, fill=False,
-                                                 method='color_per_type')
+                                                 method="color_per_type")
+
+        color_per_object = print_objects_on_graphs(graphs_of_objects, original_image, fill=False,
+                                                   method="color_per_object")
 
         networkx_graphs = do.GraphOfFoundObjects.parse_networkx_graphs(graphs_of_objects)
-        rg = ReportGenerator(networkx_graphs, color_per_type, color_per_object, original_image, image_filename,
-                             dictionary_filename, mm_per_px)
-        pdf_report = rg.to_pdf()
-        xlsx_report = rg.to_xlsx()
+        networkx_json_graph_list = do.GraphOfFoundObjects.to_networkx_json_graph_list(networkx_graphs)
+
+        rg = ReportGenerator(networkx_graphs, color_per_type, color_per_object, original_image, image_ff[1],
+                             dictionary_ff[1], mm_per_px)
+
+        color_per_type_ff = filepath_filename(files_folder, "color_per_type.png")
+        get_pil_image(color_per_type).save(color_per_type_ff[0])
+
+        color_per_object_ff = filepath_filename(files_folder, "color_per_object.png")
+        get_pil_image(color_per_object).save(color_per_object_ff[0])
+
+        networkx_json_graph_list_ff = filepath_filename(files_folder, "graphs.json")
+        do.GraphOfFoundObjects.serialize(networkx_json_graph_list, networkx_json_graph_list_ff[0])
+
+        pdf_report_ff = filepath_filename(files_folder, "report.pdf")
+        rg.to_pdf(pdf_report_ff[0])
+
+        xlsx_report_ff = filepath_filename(files_folder, "report.xlsx")
+        rg.to_xlsx(xlsx_report_ff[0])
 
         return jsonify({
-            "color_per_object": serialize_image(color_per_object),
-            "color_per_type": serialize_image(color_per_type),
-            "networkx_json_graph_list": do.GraphOfFoundObjects.serialize(
-                do.GraphOfFoundObjects.to_networkx_json_graph_list(networkx_graphs)),
-            "pdf_report": b64encode(pdf_report).decode("utf-8"),
-            "xlsx_report": b64encode(xlsx_report).decode("utf-8"),
+            "color_per_type": color_per_type_ff[1],
+            "color_per_object": color_per_object_ff[1],
+            "networkx_json_graph_list": networkx_json_graph_list_ff[1],
+            "pdf_report": pdf_report_ff[1],
+            "xlsx_report": xlsx_report_ff[1]
         })
     except IOError:
         return jsonify({"error": "Unknown error"})

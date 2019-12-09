@@ -212,8 +212,13 @@ class GraphOfFoundObjects:
         return g
 
     @staticmethod
-    def serialize(graphs):
-        return json.dumps(graphs, default=lambda x: x.item())
+    def serialize(graphs, filepath=None):
+        data = json.dumps(graphs, default=lambda x: x.item())
+        if filepath is None:
+            return data
+        else:
+            with open(filepath, "w") as io:
+                io.write(data)
 
     @staticmethod
     def parse_networkx_graphs(graphs):

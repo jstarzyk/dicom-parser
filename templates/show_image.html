@@ -34,7 +34,7 @@
         <div style="width: 100%; overflow: auto;">
             <div style="position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center;">
                 <img id="original" class="box" style="position: absolute; z-index: 1; margin-bottom: unset;"
-                     src="/uploads/{{ uploaded_image }}"
+                     src="/files/{{ image }}.png"
                      alt="Original image">
                 <canvas id="canvas" style="position: relative; z-index: 4;"></canvas>
             </div>
@@ -67,8 +67,14 @@
         const reportItems = reportDropdown.querySelectorAll("a");
 
         showItems.forEach(item => item.classList.add("disabled"));
-        imageItems.forEach(item => item.classList.add("disabled"));
-        reportItems.forEach(item => item.classList.add("disabled"));
+        imageItems.forEach(item => {
+            item.classList.add("disabled");
+            item.setAttribute("download", "");
+        });
+        reportItems.forEach(item => {
+            item.classList.add("disabled");
+            item.setAttribute("download", "");
+        });
 
         const url = new URL(window.location.href);
         const imageFilename = url.searchParams.get("image");
@@ -114,32 +120,26 @@
                 if (this.readyState === XMLHttpRequest.DONE && this.status === 200) {
                     const data = JSON.parse(this.responseText);
 
-                    const dataOriginal = originalImage.src;
-                    const dataColorPerType = "data:image/png;charset=utf-8;base64, " + data["color_per_type"];
-                    const dataColorPerObject = "data:image/png;charset=utf-8;base64, " + data["color_per_object"];
-                    const dataFoundObjects = "data:text/json;charset=utf-8, " + encodeURI(data["networkx_json_graph_list"]);
-                    const dataPdfReport = "data:application/pdf;charset=utf-8;base64, " + data["pdf_report"];
-                    const dataXlsxReport = "data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=utf-8;base64, " + data["xlsx_report"];
+                    const srcOriginalImage = `/files/${imageFilename}.png`;
+                    const srcColorPerType = `/files/${data["color_per_type"]}`;
+                    const srcColorPerObject = `/files/${data["color_per_object"]}`;
+                    const srcFoundObjects = `/files/${data["networkx_json_graph_list"]}`;
+                    const srcPdfReport = `/files/${data["pdf_report"]}`;
+                    const srcXlsxReport = `/files/${data["xlsx_report"]}`;
 
-                    originalImage.src = dataColorPerObject;
+                    originalImage.src = srcColorPerObject;
 
-                    showItems[0].onclick = () => originalImage.src = dataOriginal;
-                    showItems[1].onclick = () => originalImage.src = dataColorPerType;
-                    showItems[2].onclick = () => originalImage.src = dataColorPerObject;
+                    showItems[0].onclick = () => originalImage.src = srcOriginalImage;
+                    showItems[1].onclick = () => originalImage.src = srcColorPerType;
+                    showItems[2].onclick = () => originalImage.src = srcColorPerObject;
 
-                    imageItems[0].href = dataOriginal;
-                    imageItems[0].download = `${imageFilename}_original.png`;
-                    imageItems[1].href = dataColorPerType;
-                    imageItems[1].download = `${imageFilename}_color_per_type.png`;
-                    imageItems[2].href = dataColorPerObject;
-                    imageItems[2].download = `${imageFilename}_color_per_object.png`;
+                    imageItems[0].href = srcOriginalImage;
+                    imageItems[1].href = srcColorPerType;
+                    imageItems[2].href = srcColorPerObject;
 
-                    reportItems[0].href = dataFoundObjects;
-                    reportItems[0].download = `${imageFilename}_networkx_json_graph_list.json`;
-                    reportItems[1].href = dataPdfReport;
-                    reportItems[1].download = `${imageFilename}_report.pdf`;
-                    reportItems[2].href = dataXlsxReport;
-                    reportItems[2].download = `${imageFilename}_report.xlsx`;
+                    reportItems[0].href = srcFoundObjects;
+                    reportItems[1].href = srcPdfReport;
+                    reportItems[2].href = srcXlsxReport;
 
                     showItems.forEach(item => item.classList.remove("disabled"));
                     imageItems.forEach(item => item.classList.remove("disabled"));
