@@ -108,8 +108,7 @@ def process_files():
         networkx_graphs = do.GraphOfFoundObjects.parse_networkx_graphs(graphs_of_objects)
         networkx_json_graph_list = do.GraphOfFoundObjects.to_networkx_json_graph_list(networkx_graphs)
 
-        rg = ReportGenerator(networkx_graphs, color_per_type, color_per_object, original_image, image_ff[1],
-                             dictionary_ff[1], mm_per_px)
+        original_image_ff = filepath_filename(files_folder, request.json["image"] + ".png")
 
         color_per_type_ff = filepath_filename(files_folder, "color_per_type.png")
         get_pil_image(color_per_type).save(color_per_type_ff[0])
@@ -119,6 +118,8 @@ def process_files():
 
         networkx_json_graph_list_ff = filepath_filename(files_folder, "graphs.json")
         do.GraphOfFoundObjects.serialize(networkx_json_graph_list, networkx_json_graph_list_ff[0])
+
+        rg = ReportGenerator(networkx_graphs, original_image_ff[0], color_per_type_ff[0], color_per_object, mm_per_px)
 
         pdf_report_ff = filepath_filename(files_folder, "report.pdf")
         rg.to_pdf(pdf_report_ff[0])

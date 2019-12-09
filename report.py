@@ -52,18 +52,16 @@ class ReportGenerator:
     class PDFReport(fpdf.FPDF, fpdf.HTMLMixin):
         pass
 
-    def __init__(self, networkx_graphs, color_per_type, color_per_object, original_image, image_filename,
-                 dictionary_filename, mm_per_px=None):
+    def __init__(self, networkx_graphs, original_image_filepath, color_per_type_filepath, color_per_object_data,
+                 mm_per_px=None):
         self.mm_per_px = mm_per_px
         self.networkx_graphs = networkx_graphs
         self.found_objects = self._get_found_objects()
-        self.color_per_type = self._save_image(color_per_type)
-        self.color_per_object = self._save_image(color_per_object)
-        self.numbers_image = self._save_image(self._draw_object_numbers())
-        self.original_image = self._save_image(original_image)
-        self.image_filename = image_filename
-        self.dictionary_filename = dictionary_filename
-        # TODO: Change when images are saved
+        self.color_per_type_filepath = color_per_type_filepath
+        self.original_image_filepath = original_image_filepath
+        self.object_numbers_filename = "object_numbers.png"
+        Image.fromarray(self._draw_object_numbers(color_per_object_data)).save(self.object_numbers_filename)
+        self.image_height, self.image_width, _ = color_per_object_data.shape
 
     def _get_found_objects(self):
         return dict(enumerate(self._flatten_list(
@@ -74,23 +72,16 @@ class ReportGenerator:
     def _flatten_list(list_of_lists):
         return [item for sublist in list_of_lists for item in sublist]
 
-    def _draw_object_numbers(self):
+    def _draw_object_numbers(self, image_data):
         f = 4
-        resized_image = cv.resize(self.color_per_object[1], None, fx=f, fy=f)
+        resized_data = cv.resize(image_data, None, fx=f, fy=f)
         text_drawer = TextDrawer(cv.FONT_HERSHEY_SCRIPT_SIMPLEX, 1.0, 1)
         text_drawer.draw_texts(
-            resized_image,
+            resized_data,
             [str(number) for number in self.found_objects.keys()],
             [np.flip(found_object["center_coords"]) * f for found_object in self.found_objects.values()]
         )
-        return resized_image
-
-    @staticmethod
-    def _save_image(image):
-        image_filename = "img_{}.png".format(datetime.datetime.utcnow().timestamp())
-        saved_image = Image.fromarray(image)
-        saved_image.save(image_filename)
-        return image_filename, image
+        return resized_data
 
     def _generate_pdf_report(self, pdf):
         pdf.add_page()
@@ -101,22 +92,21 @@ class ReportGenerator:
 
         self._write_object_count(pdf)
 
-        height_px, width_px, _ = self.numbers_image[1].shape
         width_mm = pdf.fw - pdf.l_margin - pdf.r_margin
-        height_mm = height_px * (width_mm / width_px)
+        height_mm = self.image_height * (width_mm / self.image_width)
 
         pdf.set_font_size(8)
 
         pdf.add_page()
-        pdf.image(self.original_image[0], w=width_mm, h=height_mm)
+        pdf.image(self.original_image_filepath, w=width_mm, h=height_mm)
         pdf.cell(w=0, h=6, ln=1, txt="Original Image", align="C")
 
         pdf.add_page()
-        pdf.image(self.color_per_type[0], w=width_mm, h=height_mm)
+        pdf.image(self.color_per_type_filepath, w=width_mm, h=height_mm)
         pdf.cell(w=0, h=6, ln=1, txt="Objects by Type", align="C")
 
         pdf.add_page()
-        pdf.image(self.numbers_image[0], w=width_mm, h=height_mm)
+        pdf.image(self.object_numbers_filename, w=width_mm, h=height_mm)
         pdf.cell(w=0, h=6, ln=1, txt="Objects by Number", align="C")
 
         pdf.add_page()
@@ -228,13 +218,13 @@ class ReportGenerator:
         object_count.write_formula(data_row, start_col + 1, "=SUM({})".format(number_range), value=sum(count.values()))
 
         original_image = xlsx.add_worksheet("Original Image")
-        original_image.insert_image(start_row, start_col, self.original_image[0])
+        original_image.insert_image(start_row, start_col, self.original_image_filepath)
 
         color_per_type = xlsx.add_worksheet("Objects by Type")
-        color_per_type.insert_image(start_row, start_col, self.color_per_type[0])
+        color_per_type.insert_image(start_row, start_col, self.color_per_type_filepath)
 
-        numbers_image = xlsx.add_worksheet("Objects by Number")
-        numbers_image.insert_image(start_row, start_col, self.numbers_image[0])
+        object_numbers = xlsx.add_worksheet("Objects by Number")
+        object_numbers.insert_image(start_row, start_col, self.object_numbers_filename)
 
         object_features_columns = ("Number", "Type", "Length [{}]", "Min width [{}]", "Max width [{}]", "Max angle [°]")
         object_features_name = "Object Features ({})"
@@ -291,15 +281,3 @@ class ReportGenerator:
         if filename is None:
             output.seek(0)
             return output.read()
-
-
-if __name__ == "__main__":
-    # rg = ReportGenerator(None, None, None)
-    # rg.to_pdf("report.pdf")
-    # p = fpdf.FPDF()
-    # p.add_page()
-    # p.set_line_width(2)
-    # p.set_fill_color(255, 0, 0)
-    # p.ellipse(1, 1, 2, 2, "DF")
-    # p.output("report_test.pdf")
-    pass
