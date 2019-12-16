@@ -31,15 +31,6 @@ def process_uploaded_file(files, name, extension):
         return {"filename": ff[1]}
 
 
-def get_pil_image(array):
-    return Image.fromarray(array)
-
-
-def get_dicom_image(filepath):
-    dataset = do.get_dicom_dataset(filepath)
-    return do.get_image(dataset)
-
-
 def filepath_filename(folder, filename):
     filepath = os.path.join(folder, filename)
     return filepath, filename
@@ -58,7 +49,8 @@ def upload_files():
         try:
             dicom_image_ff = filepath_filename(app.config["UPLOAD_FOLDER"], image["filename"])
             png_image_ff = filepath_filename(app.config["FILES_FOLDER"], dicom_image_ff[1] + ".png")
-            get_pil_image(get_dicom_image(dicom_image_ff[0])).save(png_image_ff[0])
+            dicom_image = do.ObjectFinder.get_image(do.ObjectFinder.load_dicom_dataset(dicom_image_ff[0]))
+            Image.fromarray(dicom_image).save(png_image_ff[0])
             image["png_filename"] = png_image_ff[1]
         except KeyError:
             pass
@@ -92,17 +84,13 @@ def process_files():
         image_ff = filepath_filename(upload_folder, request.json["image"])
         dictionary_ff = filepath_filename(upload_folder, request.json["dictionary"])
 
-        dataset = do.get_dicom_dataset(image_ff[0])
-        original_image = do.get_image(dataset)
-        mm_per_px = do.get_mm_per_px_ratio(dataset)
-        model_objects = do.load_objects(dictionary_ff[0])
-        graphs_processed = do.process_image(original_image)
-        graphs_of_objects = do.GraphOfFoundObjects.find_objects_in_graphs(graphs_processed, model_objects)
+        object_finder = do.ObjectFinder(image_ff[0], dictionary_ff[0])
+        graphs_of_objects = object_finder.find_objects_on_graphs()
 
-        color_per_type = print_objects_on_graphs(graphs_of_objects, original_image, fill=False,
+        color_per_type = print_objects_on_graphs(graphs_of_objects, object_finder.original_image, fill=False,
                                                  method="color_per_type")
 
-        color_per_object = print_objects_on_graphs(graphs_of_objects, original_image, fill=False,
+        color_per_object = print_objects_on_graphs(graphs_of_objects, object_finder.original_image, fill=False,
                                                    method="color_per_object")
 
         networkx_graphs = do.GraphOfFoundObjects.parse_networkx_graphs(graphs_of_objects)
@@ -111,15 +99,16 @@ def process_files():
         original_image_ff = filepath_filename(files_folder, request.json["image"] + ".png")
 
         color_per_type_ff = filepath_filename(files_folder, "color_per_type.png")
-        get_pil_image(color_per_type).save(color_per_type_ff[0])
+        Image.fromarray(color_per_type).save(color_per_type_ff[0])
 
         color_per_object_ff = filepath_filename(files_folder, "color_per_object.png")
-        get_pil_image(color_per_object).save(color_per_object_ff[0])
+        Image.fromarray(color_per_object).save(color_per_object_ff[0])
 
         networkx_json_graph_list_ff = filepath_filename(files_folder, "graphs.json")
         do.GraphOfFoundObjects.serialize(networkx_json_graph_list, networkx_json_graph_list_ff[0])
 
-        rg = ReportGenerator(networkx_graphs, original_image_ff[0], color_per_type_ff[0], color_per_object, mm_per_px)
+        rg = ReportGenerator(networkx_graphs, original_image_ff[0], color_per_type_ff[0], color_per_object,
+                             object_finder.mm_per_px)
 
         pdf_report_ff = filepath_filename(files_folder, "report.pdf")
         rg.to_pdf(pdf_report_ff[0])

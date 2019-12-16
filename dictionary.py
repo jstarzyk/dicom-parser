@@ -57,6 +57,7 @@ class ModelObject:
         text += 'Length: %s\n' % str(self.length)
         return text
 
+
 def find_objects_on_branch(model_objects, branch):
     start, start_free_space = 0, 0
     objects = []
@@ -139,7 +140,6 @@ class GraphOfFoundObjects:
         self.name = name
         self.length = len(graph.nodes)
 
-
     def __repr__(self):
         stack = [(self.start_branch, '1', '\t')]
         text = "%s (length = %d):\n" % (self.name, self.length)
@@ -152,10 +152,6 @@ class GraphOfFoundObjects:
             for i, next_branch in enumerate(curr_branch.next):
                 stack.append((next_branch, branch_no + '.' + str(i + 1), prefix + '\t'))
         return text
-
-    @staticmethod
-    def find_objects_in_graphs(graphs, model_objects):
-        return [GraphOfFoundObjects(graph, model_objects, "Graph #%d" % i) for i, graph in enumerate(graphs)]
 
     @staticmethod
     def repr_found_object(found_object, branch_nodes):
@@ -235,15 +231,3 @@ class GraphOfFoundObjects:
     @staticmethod
     def to_networkx_json_graph_list(graphs):
         return [nx.readwrite.json_graph.node_link_data(graph) for graph in graphs]
-
-
-def load_objects(filename):
-    with open(filename) as f:
-        objects_desc = json.loads(f.read())
-        return [ModelObject(desc) for desc in objects_desc]
-
-
-if __name__ == '__main__':
-    model_objects = load_objects('sample_input.json')
-    for model_object in model_objects:
-        print(model_object)

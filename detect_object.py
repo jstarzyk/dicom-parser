@@ -7,111 +7,81 @@ import pydicom
 
 from dictionary import *
 from image_process import get_bin_image
-from print_objects import print_objects_on_graphs
-from report import ReportGenerator
 
 
 def init_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--input', '-i', dest='source', action='store',
+    parser.add_argument('--img', '-i', dest='image', action='store',
                         default='input.DCM', help='path to input dicom file')
-    parser.add_argument('--dict', '-d', dest='dict', action='store',
-                        default='sample_input.json', help='path to input dictionary description')
-    parser.add_argument('--dest', dest='dest', action='store',
-                        default='result.txt', help='path to output found objects description')
-    parser.add_argument('--img_dest', dest='img_dest', action='store',
-                        default='result.png', help='path to output image with objects')
+    parser.add_argument('--dict', '-d', dest='dictionary', action='store',
+                        default='sample_input.json', help='path to input dictionary file')
+    parser.add_argument('--res', dest='result', action='store',
+                        default='graphs.json', help='path to output found objects representation')
     return parser
 
 
-def get_dicom_dataset(dicom_file):
-    return pydicom.dcmread(dicom_file)
+class ObjectFinder:
+    def __init__(self, image_filepath, dictionary_filepath):
+        self.dataset = self.load_dicom_dataset(image_filepath)
+        self.model_objects = self.load_objects(dictionary_filepath)
+        self.mm_per_px = self.get_mm_per_px_ratio(self.dataset)
+        self.original_image = self.get_image(self.dataset)
+        self.graphs_processed = self.process_image(self.original_image)
 
+    @staticmethod
+    def load_dicom_dataset(filepath):
+        return pydicom.dcmread(filepath)
 
-def get_mm_per_px_ratio(dataset):
-    try:
-        pixel_spacing = dataset.PixelSpacing
-        ps_x = float(pixel_spacing[0])
-        ps_y = float(pixel_spacing[1])
-        if ps_x == ps_y:
-            return ps_x
-        else:
+    @staticmethod
+    def load_objects(filepath):
+        with open(filepath) as f:
+            objects_desc = json.loads(f.read())
+            return [ModelObject(desc) for desc in objects_desc]
+
+    @staticmethod
+    def get_mm_per_px_ratio(dataset):
+        try:
+            pixel_spacing = dataset.PixelSpacing
+            ps_x = float(pixel_spacing[0])
+            ps_y = float(pixel_spacing[1])
+            return ps_x if ps_x == ps_y else None
+        except AttributeError:
             return None
-    except AttributeError:
-        return None
 
+    @staticmethod
+    def get_image(dataset):
+        image = dataset.pixel_array if len(dataset.pixel_array.shape) == 2 else dataset.pixel_array[0]
+        return np.uint8(image)
 
-def get_image(dataset):
-    if len(dataset.pixel_array.shape) == 2:
-        image = dataset.pixel_array
-    else:
-        image = dataset.pixel_array[0]
-    return np.uint8(image)
+    @staticmethod
+    def process_image(image):
+        dist, bin_image = get_bin_image(image)
+        graphs = list(transform_to_graph(bin_image, r=10))
 
+        for graph in graphs:
+            fill_gapes(graph)
 
-def process_image(image):
-    dist, bin_image = get_bin_image(image)
-    graphs = list(transform_to_graph(bin_image, r=10))
+        result = list(map(get_largest_path_as_graph, graphs))
 
-    for graph in graphs:
-        fill_gapes(graph)
+        for graph in result:
+            add_width_to_nodes(graph, dist)
+            add_tree_attributes(graph)
+            fill_width_for_conected(graph)
 
-    result = list(map(get_largest_path_as_graph, graphs))
+        return result
 
-    for graph in result:
-        add_width_to_nodes(graph, dist)
-        add_tree_attributes(graph)
-        fill_width_for_conected(graph)
-
-    return result
+    def find_objects_on_graphs(self):
+        return [GraphOfFoundObjects(graph, self.model_objects, "Graph #%d" % i) for i, graph in
+                enumerate(self.graphs_processed)]
 
 
 if __name__ == '__main__':
     arg_parser = init_parser()
     args = arg_parser.parse_args()
-    dataset = get_dicom_dataset(args.source)
-    mm_per_px = get_mm_per_px_ratio(dataset)
-    original_image = get_image(dataset)
-    model_objects = load_objects(args.dict)
-    graphs_processed = process_image(original_image)
 
-    # with open(args.dest, 'w') as dest:
-    graphs_of_objects = GraphOfFoundObjects.find_objects_in_graphs(graphs_processed, model_objects)
+    object_finder = ObjectFinder(args.image, args.dictionary)
+    graphs_of_objects = object_finder.find_objects_on_graphs()
 
-    # color_per_object = print_objects_on_graphs(
-    #     graphs_of_objects,
-    #     original_image,
-    #     fill=False,
-    #     method='color_per_object'
-    # )
-    # color_per_type = print_objects_on_graphs(
-    #     graphs_of_objects,
-    #     original_image,
-    #     fill=False,
-    #     method='color_per_type'
-    # )
-    GraphOfFoundObjects.serialize_as_txt(graphs_of_objects, args.dest)
-    # graphs_of_objects = GraphOfFoundObjects.create_and_write_graphs(
-    #     graphs_processed,
-    #     model_objects,
-    #     dest
-    # )
-    # GraphOfFoundObjects.set_mm_per_px(graphs_of_objects, mm_per_px)
-    # rg = ReportGenerator(GraphOfFoundObjects.parse_networkx_graphs(graphs_of_objects), original_image,
-    #                      color_per_type, color_per_object, args.source)
-    # rg.to_pdf("tmpf2.pdf")
-    # rg.to_xlsx("tmpf2.xlsx")
-
-    # networkx_json_graph_list = GraphOfFoundObjects.to_networkx_json_graph_list(graphs_of_objects)
-    # dest.write(GraphOfFoundObjects.serialize(networkx_json_graph_list))
-    # print(graphs_of_objects)
-
-    # objects_image = print_objects_on_graphs(graphs_of_objects, original_image, fill=False, method='color_per_object')
-    # objects_image = get_graph_image(graphs_processed, original_image, width=False)
-    # cv2.imwrite(args.img_dest, objects_image)
-
-    # cv2.imshow('Found Objects', graph_image)
-    # cv2.imwrite('tmp.png', graph_image)
-    # while cv2.getWindowProperty('Found Objects', 0) >= 0:
-    #     cv2.waitKey(10)
-    # cv2.destroyAllWindows()
+    networkx_graphs = GraphOfFoundObjects.parse_networkx_graphs(graphs_of_objects)
+    networkx_json_graph_list = GraphOfFoundObjects.to_networkx_json_graph_list(networkx_graphs)
+    GraphOfFoundObjects.serialize(networkx_json_graph_list, args.result)
