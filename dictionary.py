@@ -1,5 +1,8 @@
-import networkx as nx
 import json
+from io import StringIO
+
+import networkx as nx
+
 from graph import *
 
 
@@ -155,16 +158,6 @@ class GraphOfFoundObjects:
         return [GraphOfFoundObjects(graph, model_objects, "Graph #%d" % i) for i, graph in enumerate(graphs)]
 
     @staticmethod
-    def create_and_write_graphs(graphs, model_objects, file=None):
-        graphs_with_objects = []
-        for i, graph in enumerate(graphs):
-            graph_with_objects = GraphOfFoundObjects(graph, model_objects, "Graph #%d" % i)
-            graphs_with_objects.append(graph_with_objects)
-            if not file is None:
-                file.write(graph_with_objects.__repr__())
-        return graphs_with_objects
-
-    @staticmethod
     def repr_found_object(found_object, branch_nodes):
         desc = found_object.description
         nodes = branch_nodes[desc["start_index"]:desc["end_index"]]
@@ -219,6 +212,21 @@ class GraphOfFoundObjects:
         else:
             with open(filepath, "w") as io:
                 io.write(data)
+
+    @staticmethod
+    def serialize_as_txt(graphs_of_objects, filepath=None):
+        def write(graphs, output):
+            for graph in graphs:
+                output.write(graph.__repr__())
+
+        if filepath is None:
+            with StringIO() as io:
+                write(graphs_of_objects, io)
+                io.seek(0)
+                return io.read()
+        else:
+            with open(filepath, "w") as io:
+                write(graphs_of_objects, io)
 
     @staticmethod
     def parse_networkx_graphs(graphs):

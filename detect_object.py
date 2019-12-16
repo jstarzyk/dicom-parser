@@ -75,30 +75,36 @@ if __name__ == '__main__':
     model_objects = load_objects(args.dict)
     graphs_processed = process_image(original_image)
 
-    with open(args.dest, 'w') as dest:
-        graphs_of_objects = GraphOfFoundObjects.find_objects_in_graphs(graphs_processed, model_objects)
+    # with open(args.dest, 'w') as dest:
+    graphs_of_objects = GraphOfFoundObjects.find_objects_in_graphs(graphs_processed, model_objects)
 
-        color_per_object = print_objects_on_graphs(
-            graphs_of_objects,
-            original_image,
-            fill=False,
-            method='color_per_object'
-        )
-        color_per_type = print_objects_on_graphs(
-            graphs_of_objects,
-            original_image,
-            fill=False,
-            method='color_per_type'
-        )
-        # GraphOfFoundObjects.set_mm_per_px(graphs_of_objects, mm_per_px)
-        # rg = ReportGenerator(GraphOfFoundObjects.parse_networkx_graphs(graphs_of_objects), original_image,
-        #                      color_per_type, color_per_object, args.source)
-        # rg.to_pdf("tmpf2.pdf")
-        # rg.to_xlsx("tmpf2.xlsx")
+    # color_per_object = print_objects_on_graphs(
+    #     graphs_of_objects,
+    #     original_image,
+    #     fill=False,
+    #     method='color_per_object'
+    # )
+    # color_per_type = print_objects_on_graphs(
+    #     graphs_of_objects,
+    #     original_image,
+    #     fill=False,
+    #     method='color_per_type'
+    # )
+    GraphOfFoundObjects.serialize_as_txt(graphs_of_objects, args.dest)
+    # graphs_of_objects = GraphOfFoundObjects.create_and_write_graphs(
+    #     graphs_processed,
+    #     model_objects,
+    #     dest
+    # )
+    # GraphOfFoundObjects.set_mm_per_px(graphs_of_objects, mm_per_px)
+    # rg = ReportGenerator(GraphOfFoundObjects.parse_networkx_graphs(graphs_of_objects), original_image,
+    #                      color_per_type, color_per_object, args.source)
+    # rg.to_pdf("tmpf2.pdf")
+    # rg.to_xlsx("tmpf2.xlsx")
 
-        # networkx_json_graph_list = GraphOfFoundObjects.to_networkx_json_graph_list(graphs_of_objects)
-        # dest.write(GraphOfFoundObjects.serialize(networkx_json_graph_list))
-        # print(graphs_of_objects)
+    # networkx_json_graph_list = GraphOfFoundObjects.to_networkx_json_graph_list(graphs_of_objects)
+    # dest.write(GraphOfFoundObjects.serialize(networkx_json_graph_list))
+    # print(graphs_of_objects)
 
     # objects_image = print_objects_on_graphs(graphs_of_objects, original_image, fill=False, method='color_per_object')
     # objects_image = get_graph_image(graphs_processed, original_image, width=False)
