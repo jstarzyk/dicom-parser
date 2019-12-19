@@ -52,13 +52,16 @@ class ReportGenerator:
     class PDFReport(fpdf.FPDF, fpdf.HTMLMixin):
         pass
 
-    def __init__(self, networkx_graphs, original_image_filepath, color_per_type_filepath, color_per_object_data,
-                 mm_per_px=None):
+    def __init__(self, networkx_graphs, image_filename, dictionary_filename, original_image_filepath,
+                 color_per_type_filepath, color_per_object_data, mm_per_px=None):
         self.mm_per_px = mm_per_px
         self.networkx_graphs = networkx_graphs
         self.found_objects = self._get_found_objects()
         self.color_per_type_filepath = color_per_type_filepath
         self.original_image_filepath = original_image_filepath
+        self.dictionary_filename = dictionary_filename
+        self.image_filename = image_filename
+        self.info_items = self._get_info_items()
         self.object_numbers_filename = "object_numbers.png"
         Image.fromarray(self._draw_object_numbers(color_per_object_data)).save(self.object_numbers_filename)
         self.image_height, self.image_width, _ = color_per_object_data.shape
@@ -90,6 +93,7 @@ class ReportGenerator:
         pdf.set_font_size(20)
         pdf.cell(w=0, h=15, ln=1, txt="Found Objects", align="L")
 
+        self._write_report_info(pdf)
         self._write_object_count(pdf)
 
         width_mm = pdf.fw - pdf.l_margin - pdf.r_margin
@@ -120,6 +124,20 @@ class ReportGenerator:
 
         pdf.add_page()
         self._write_object_features(pdf, "mm")
+
+    def _get_info_items(self):
+        return [
+            ("Image file", self.image_filename),
+            ("Dictionary file", self.dictionary_filename),
+            ("Report generation date", datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        ]
+
+    def _write_report_info(self, pdf):
+        pdf.set_font_size(16)
+        pdf.cell(w=0, h=12, ln=1, txt="Info", align="L")
+        pdf.set_font_size(12)
+        for k, v in self.info_items:
+            pdf.cell(w=0, h=9, ln=1, txt="{}: {}".format(k, v), align="L")
 
     def _write_object_count(self, pdf):
         pdf.set_font_size(16)
@@ -207,6 +225,9 @@ class ReportGenerator:
 
         start_row = 0
         start_col = 0
+
+        info = xlsx.add_worksheet("Info")
+        self._write_table(info, start_row - 1, start_col, [], self.info_items, None)
 
         object_count = xlsx.add_worksheet("Object Count")
         count = {object_type: self._count_found_objects(object_type) for object_type in self._get_found_object_types()}

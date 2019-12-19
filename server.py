@@ -107,8 +107,8 @@ def process_files():
         networkx_json_graph_list_ff = filepath_filename(files_folder, "graphs.json")
         do.GraphOfFoundObjects.serialize(networkx_json_graph_list, networkx_json_graph_list_ff[0])
 
-        rg = ReportGenerator(networkx_graphs, original_image_ff[0], color_per_type_ff[0], color_per_object,
-                             object_finder.mm_per_px)
+        rg = ReportGenerator(networkx_graphs, image_ff[1], dictionary_ff[1], original_image_ff[0], color_per_type_ff[0],
+                             color_per_object, object_finder.mm_per_px)
 
         pdf_report_ff = filepath_filename(files_folder, "report.pdf")
         rg.to_pdf(pdf_report_ff[0])
