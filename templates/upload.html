@@ -91,7 +91,7 @@
                     } else if ("error" in dictionary) {
                         window.alert(dictionary.error);
                     } else {
-                        window.location.href = `/show_image?image=${image.filename}&dictionary=${dictionary.filename}`;
+                        window.location.href = `/show_image?image=${image["filename"]}&dictionary=${dictionary["filename"]}`;
                     }
                 }
             };

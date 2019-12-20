@@ -1,5 +1,8 @@
-import networkx as nx
 import json
+from io import StringIO
+
+import networkx as nx
+
 from graph import *
 
 
@@ -53,6 +56,7 @@ class ModelObject:
         text += 'Slices: %s\n' % str(self.slices)
         text += 'Length: %s\n' % str(self.length)
         return text
+
 
 def find_objects_on_branch(model_objects, branch):
     start, start_free_space = 0, 0
@@ -136,7 +140,6 @@ class GraphOfFoundObjects:
         self.name = name
         self.length = len(graph.nodes)
 
-
     def __repr__(self):
         stack = [(self.start_branch, '1', '\t')]
         text = "%s (length = %d):\n" % (self.name, self.length)
@@ -151,22 +154,26 @@ class GraphOfFoundObjects:
         return text
 
     @staticmethod
-    def find_objects_in_graphs(graphs, model_objects):
-        return [GraphOfFoundObjects(graph, model_objects, "Graph #%d" % i) for i, graph in enumerate(graphs)]
-
-    @staticmethod
-    def create_and_write_graphs(graphs, model_objects, file=None):
-        graphs_with_objects = []
-        for i, graph in enumerate(graphs):
-            graph_with_objects = GraphOfFoundObjects(graph, model_objects, "Graph #%d" % i)
-            graphs_with_objects.append(graph_with_objects)
-            if not file is None:
-                file.write(graph_with_objects.__repr__())
-        return graphs_with_objects
+    def repr_found_object(found_object, branch_nodes):
+        desc = found_object.description
+        nodes = branch_nodes[desc["start_index"]:desc["end_index"]]
+        return {
+            "type": desc["name"],
+            "length": get_length_in_px(nodes),
+            "min_width": desc["min_width"],
+            "max_width": desc["max_width"],
+            "start_coords": desc["start_coords"],
+            "end_coords": desc["end_coords"],
+            "center_coords": desc["center_coords"],
+            "max_angle": desc["max_angle"],
+        }
 
     @staticmethod
     def parse_networkx_node(branch):
-        return {"found_objects": [o.description for o in branch.found_objects], "max_angle": branch.max_angle}
+        return {
+            "found_objects": [GraphOfFoundObjects.repr_found_object(o, branch.nodes) for o in branch.found_objects],
+            "max_angle": branch.max_angle
+        }
 
     @staticmethod
     def parse_networkx_graph(graph):
@@ -194,21 +201,33 @@ class GraphOfFoundObjects:
         return g
 
     @staticmethod
-    def serialize(graphs):
-        return json.dumps(graphs, default=lambda x: x.item())
+    def serialize(graphs, filepath=None):
+        data = json.dumps(graphs, default=lambda x: x.item())
+        if filepath is None:
+            return data
+        else:
+            with open(filepath, "w") as io:
+                io.write(data)
+
+    @staticmethod
+    def serialize_as_txt(graphs_of_objects, filepath=None):
+        def write(graphs, output):
+            for graph in graphs:
+                output.write(graph.__repr__())
+
+        if filepath is None:
+            with StringIO() as io:
+                write(graphs_of_objects, io)
+                io.seek(0)
+                return io.read()
+        else:
+            with open(filepath, "w") as io:
+                write(graphs_of_objects, io)
+
+    @staticmethod
+    def parse_networkx_graphs(graphs):
+        return [GraphOfFoundObjects.parse_networkx_graph(graph) for graph in graphs]
 
     @staticmethod
     def to_networkx_json_graph_list(graphs):
-        return [nx.readwrite.json_graph.node_link_data(GraphOfFoundObjects.parse_networkx_graph(graph)) for graph in graphs]
-
-
-def load_objects(filename):
-    with open(filename) as f:
-        objects_desc = json.loads(f.read())
-        return [ModelObject(desc) for desc in objects_desc]
-
-
-if __name__ == '__main__':
-    model_objects = load_objects('sample_input.json')
-    for model_object in model_objects:
-        print(model_object)
+        return [nx.readwrite.json_graph.node_link_data(graph) for graph in graphs]

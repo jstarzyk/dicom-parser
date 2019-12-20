@@ -520,4 +520,6 @@ def get_maxium_angle(nodes):
     peaks = find_peaks(dist, int(len(dist) / 15))
     return np.max(get_angles(peaks, points))
 
-    
+def get_length_in_px(nodes):
+    d = np.diff([node.coord for node in nodes], axis=0)
+    return np.hypot(d[:, 0], d[:, 1]).sum()
